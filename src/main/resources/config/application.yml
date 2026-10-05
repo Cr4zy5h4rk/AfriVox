@@ -111,6 +111,10 @@ spring:
         #- tls
   jmx:
     enabled: false
+  liquibase:
+    parameters:
+      # Hash BCrypt du mot de passe admin initial, jamais en clair ni dans le depot (voir changeSet 00000000000003)
+      adminPasswordHash: ${afrivox.admin.password-hash}
   data:
     jpa:
       repositories:
@@ -219,4 +223,6 @@ jhipster:
 # https://www.jhipster.tech/common-application-properties/
 # ===================================================================
 
-# application:
+application:
+  # Pas de SMTP au MVP : les comptes sont actives a l inscription. Mettre false une fois le SMTP configure.
+  auto-activate-accounts: true

@@ -1,5 +1,6 @@
 package com.afrivox.app.service;
 
+import com.afrivox.app.config.ApplicationProperties;
 import com.afrivox.app.config.Constants;
 import com.afrivox.app.domain.Authority;
 import com.afrivox.app.domain.User;
@@ -41,16 +42,20 @@ public class UserService {
 
     private final CacheManager cacheManager;
 
+    private final ApplicationProperties applicationProperties;
+
     public UserService(
         UserRepository userRepository,
         PasswordEncoder passwordEncoder,
         AuthorityRepository authorityRepository,
-        CacheManager cacheManager
+        CacheManager cacheManager,
+        ApplicationProperties applicationProperties
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authorityRepository = authorityRepository;
         this.cacheManager = cacheManager;
+        this.applicationProperties = applicationProperties;
     }
 
     public Optional<User> activateRegistration(String key) {
@@ -116,10 +121,12 @@ public class UserService {
         }
         newUser.setImageUrl(userDTO.getImageUrl());
         newUser.setLangKey(userDTO.getLangKey());
-        // new user is not active
-        newUser.setActivated(false);
-        // new user gets registration key
-        newUser.setActivationKey(RandomUtil.generateActivationKey());
+        // sans SMTP, le compte est actif d emblee ; sinon il attend l e-mail d activation
+        boolean autoActivate = applicationProperties.isAutoActivateAccounts();
+        newUser.setActivated(autoActivate);
+        if (!autoActivate) {
+            newUser.setActivationKey(RandomUtil.generateActivationKey());
+        }
         Set<Authority> authorities = new HashSet<>();
         authorityRepository.findById(AuthoritiesConstants.USER).ifPresent(authorities::add);
         newUser.setAuthorities(authorities);

@@ -79,6 +79,11 @@ server:
 # Full reference is available at: https://www.jhipster.tech/common-application-properties/
 # ===================================================================
 
+# SECRETS PROD (jamais dans le depot), a fournir par variables d environnement :
+#   JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64SECRET  secret JWT (Base64, 64 octets min.)
+#   AFRIVOX_ADMIN_PASSWORD_HASH                        hash BCrypt du mot de passe admin initial
+#   SPRING_DATASOURCE_USERNAME / SPRING_DATASOURCE_PASSWORD
+# Sans le secret JWT ou le hash admin, l application refuse de demarrer (voulu).
 jhipster:
   http:
     cache: # Used by the CachingHttpHeadersFilter

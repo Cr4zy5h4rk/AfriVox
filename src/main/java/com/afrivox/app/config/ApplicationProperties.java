@@ -13,10 +13,21 @@ public class ApplicationProperties {
 
     private final Liquibase liquibase = new Liquibase();
 
+    /** Active les comptes a l inscription (sans e-mail d activation). Faux par defaut. */
+    private boolean autoActivateAccounts = false;
+
     // jhipster-needle-application-properties-property
 
     public Liquibase getLiquibase() {
         return liquibase;
+    }
+
+    public boolean isAutoActivateAccounts() {
+        return autoActivateAccounts;
+    }
+
+    public void setAutoActivateAccounts(boolean autoActivateAccounts) {
+        this.autoActivateAccounts = autoActivateAccounts;
     }
 
     // jhipster-needle-application-properties-property-getter

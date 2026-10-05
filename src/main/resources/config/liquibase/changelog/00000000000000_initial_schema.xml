@@ -85,23 +85,37 @@
                   usePreparedStatements="true">
             <column name="name" type="string"/>
         </loadData>
-        <loadData
-                  file="config/liquibase/data/user.csv"
-                  separator=";"
-                  tableName="jhi_user"
-                  usePreparedStatements="true">
-            <column name="id" type="numeric"/>
-            <column name="activated" type="boolean"/>
-            <column name="created_date" type="timestamp"/>
-        </loadData>
-        <loadData
-                  file="config/liquibase/data/user_authority.csv"
-                  separator=";"
-                  tableName="jhi_user_authority"
-                  usePreparedStatements="true">
-            <column name="user_id" type="numeric"/>
-        </loadData>
         <dropDefaultValue tableName="jhi_user" columnName="created_date" columnDataType="${datetimeType}"/>
+    </changeSet>
+
+    <!--
+        Compte administrateur initial. Aucun compte par defaut admin/admin ni user/user :
+        le hash BCrypt du mot de passe vient de la propriete afrivox.admin.password-hash
+        (variable d environnement AFRIVOX_ADMIN_PASSWORD_HASH en production).
+        Si la propriete est absente, le demarrage s arrete. Non execute en contexte test.
+    -->
+    <changeSet id="00000000000003" author="afrivox" context="!test">
+        <preConditions onFail="HALT" onFailMessage="adminPasswordHash non defini : renseigner afrivox.admin.password-hash (hash BCrypt)">
+            <changeLogPropertyDefined property="adminPasswordHash"/>
+        </preConditions>
+        <insert tableName="jhi_user">
+            <column name="id" valueNumeric="1"/>
+            <column name="login" value="admin"/>
+            <column name="password_hash" value="${adminPasswordHash}"/>
+            <column name="first_name" value="Administrateur"/>
+            <column name="activated" valueBoolean="true"/>
+            <column name="lang_key" value="fr"/>
+            <column name="created_by" value="system"/>
+            <column name="created_date" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="jhi_user_authority">
+            <column name="user_id" valueNumeric="1"/>
+            <column name="authority_name" value="ROLE_ADMIN"/>
+        </insert>
+        <insert tableName="jhi_user_authority">
+            <column name="user_id" valueNumeric="1"/>
+            <column name="authority_name" value="ROLE_USER"/>
+        </insert>
     </changeSet>
 
     <changeSet author="jhipster" id="00000000000002" context="test">

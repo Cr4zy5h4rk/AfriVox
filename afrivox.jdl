@@ -1,0 +1,223 @@
+// JDL de départ. Non validé par le générateur : lancer `jhipster jdl afrivox.jdl --skip-git`
+// et corriger les erreurs éventuelles. Renommer baseName et packageName selon le nom choisi.
+
+application {
+  config {
+    baseName afrivox
+    applicationType monolith
+    packageName sn.afrivox
+    authenticationType jwt
+    buildTool maven
+    prodDatabaseType postgresql
+    devDatabaseType postgresql
+    cacheProvider no
+    enableHibernateCache false
+    clientFramework no
+    enableTranslation false
+    nativeLanguage fr
+    searchEngine no
+    messageBroker no
+    serverPort 8080
+    skipUserManagement false
+    testFrameworks []
+  }
+  entities *
+}
+
+/* ---------- Enums ---------- */
+enum ScriptKind { LATIN, ARABIC, NKO, OTHER }
+enum TextDirection { LTR, RTL }
+enum LanguageStatus { WAITLIST, ACTIVE }
+enum QualificationStatus { PENDING, QUALIFIED, REVOKED }
+enum ConsentKind { COLLECTION, RESALE, FREE_DISTRIBUTION, VOICE_LICENSING }
+enum CampaignKind { OPEN, SPONSORED, PRIVATE }
+enum CampaignStatus { DRAFT, ACTIVE, CLOSED }
+enum QcStatus { PENDING, PASSED, FAILED }
+enum RecordingStatus { SUBMITTED, VALIDATED, REJECTED, WITHDRAWN }
+enum Verdict { ACCEPT, REJECT }
+enum CreditReason { RECORDING_VALIDATED, REVIEW_DONE, ROYALTY, PURCHASE, ADJUSTMENT }
+enum DatasetPlan { STARTER, PLUS, PRO }
+enum LicenseKind { PROTOTYPE, RESEARCH, COMMERCIAL }
+enum VersionStatus { DRAFT, PUBLISHED, WITHDRAWN }
+enum MlTask { ASR, TTS, INTENT, OTHER }
+enum Sector { BANK, TELECOM, HEALTH, PUBLIC, EDUCATION, STARTUP, RESEARCH, OTHER }
+enum UsageKind { COMMERCIAL, RESEARCH }
+enum RequestStatus { RECEIVED, IN_REVIEW, QUOTED, ACCEPTED, COLLECTING, DELIVERED, REJECTED }
+
+/* ---------- Noyau ---------- */
+entity Language {
+  code String required unique maxlength(10)
+  name String required maxlength(80)
+  dialect String maxlength(80)
+  script ScriptKind required
+  direction TextDirection required
+  status LanguageStatus required
+  minValidators Integer required min(1)
+}
+
+entity UserProfile {
+  displayName String required maxlength(80)
+  country String maxlength(60)
+  bio String maxlength(300)
+  createdAt Instant required
+}
+
+entity LanguageQualification {
+  score Float min(0) max(100)
+  status QualificationStatus required
+  qualifiedAt Instant
+}
+
+entity Consent {
+  kind ConsentKind required
+  policyVersion String required maxlength(20)
+  grantedAt Instant required
+  revokedAt Instant
+}
+
+entity Campaign {
+  title String required maxlength(120)
+  description String maxlength(1000)
+  domain String maxlength(80)
+  kind CampaignKind required
+  status CampaignStatus required
+  targetSentences Integer min(1)
+  createdAt Instant required
+}
+
+entity Prompt {
+  content String required maxlength(500)
+}
+
+entity Recording {
+  audioPath String required maxlength(300)
+  durationMs Integer required min(0)
+  sha256 String maxlength(64)
+  qcStatus QcStatus required
+  qcScore Float
+  transcript String maxlength(1000)
+  status RecordingStatus required
+  createdAt Instant required
+}
+
+entity RecordingReview {
+  verdict Verdict required
+  audioOk Boolean
+  pronunciationOk Boolean
+  transcriptOk Boolean
+  gold Boolean
+  note String maxlength(300)
+  createdAt Instant required
+}
+
+entity CreditTransaction {
+  amount Integer required
+  reason CreditReason required
+  createdAt Instant required
+}
+
+entity Dataset {
+  slug String required unique maxlength(80)
+  title String required maxlength(120)
+  description String maxlength(1000)
+  domain String maxlength(80)
+  plan DatasetPlan required
+}
+
+entity DatasetVersion {
+  label String required maxlength(20)
+  hours Float min(0)
+  speakers Integer min(0)
+  qualityScore Float min(0) max(100)
+  pricePerHourFcfa Integer min(0)
+  license LicenseKind required
+  status VersionStatus required
+  packagePath String maxlength(300)
+  sha256 String maxlength(64)
+  createdAt Instant required
+}
+
+entity DownloadLog {
+  downloadedAt Instant required
+  ip String maxlength(45)
+}
+
+/* ---------- Développeurs et organisations ---------- */
+entity MlModel {
+  name String required maxlength(120)
+  task MlTask required
+  description String maxlength(1000)
+  license String maxlength(60)
+  url String maxlength(300)
+  downloads Integer min(0)
+  createdAt Instant required
+}
+
+entity Evaluation {
+  wer Float min(0)
+  cer Float min(0)
+  submittedAt Instant required
+}
+
+entity ApiKey {
+  name String required maxlength(60)
+  prefix String required maxlength(12)
+  keyHash String required maxlength(100)
+  createdAt Instant required
+  revokedAt Instant
+}
+
+entity DatasetRequest {
+  orgName String required maxlength(120)
+  sector Sector required
+  hours Integer required min(1)
+  speakersTarget Integer min(1)
+  conversationType String maxlength(120)
+  usageKind UsageKind required
+  deadline LocalDate
+  description String maxlength(1500)
+  status RequestStatus required
+  quoteAmountFcfa Integer min(0)
+  createdAt Instant required
+}
+
+/* ---------- Relations ---------- */
+relationship OneToOne {
+  UserProfile{user(login)} to User with builtInEntity
+}
+
+relationship ManyToOne {
+  LanguageQualification{profile(displayName)} to UserProfile
+  LanguageQualification{language(code)} to Language
+  Consent{profile(displayName)} to UserProfile
+  Campaign{language(code)} to Language
+  Campaign{request} to DatasetRequest
+  Prompt{campaign(title)} to Campaign
+  Recording{prompt} to Prompt
+  Recording{contributor(displayName)} to UserProfile
+  RecordingReview{recording} to Recording
+  RecordingReview{reviewer(displayName)} to UserProfile
+  CreditTransaction{profile(displayName)} to UserProfile
+  CreditTransaction{datasetVersion(label)} to DatasetVersion
+  Dataset{language(code)} to Language
+  DatasetVersion{dataset(slug)} to Dataset
+  DownloadLog{datasetVersion(label)} to DatasetVersion
+  DownloadLog{profile(displayName)} to UserProfile
+  MlModel{owner(displayName)} to UserProfile
+  MlModel{language(code)} to Language
+  MlModel{trainedOn(label)} to DatasetVersion
+  Evaluation{model(name)} to MlModel
+  Evaluation{testSet(label)} to DatasetVersion
+  ApiKey{owner(displayName)} to UserProfile
+  DatasetRequest{language(code)} to Language
+  DatasetRequest{requester(displayName)} to UserProfile
+}
+
+relationship ManyToMany {
+  DatasetVersion{recording} to Recording{datasetVersion}
+}
+
+/* ---------- Options ---------- */
+paginate Recording, RecordingReview, DownloadLog, CreditTransaction, Prompt with pagination
+service all with serviceClass
+dto all with mapstruct

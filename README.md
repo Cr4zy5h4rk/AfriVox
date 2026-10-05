@@ -169,3 +169,14 @@ To configure CI for your project, run the ci-cd sub-generator (`jhipster ci-cd`)
 - [Setting up Continuous Integration](https://www.jhipster.tech/documentation-archive/v9.3.0/setting-up-ci/)
 - [Node.js](https://nodejs.org/)
 - [NPM](https://www.npmjs.com/)
+
+## Secrets et compte administrateur
+
+Aucun compte par défaut n'est créé. Le compte `admin` est inséré par Liquibase à partir d'un hash BCrypt fourni en configuration :
+
+- propriété `afrivox.admin.password-hash` (variable d'environnement `AFRIVOX_ADMIN_PASSWORD_HASH`) ;
+- génération du hash : `docker run --rm httpd:2.4-alpine htpasswd -nbBC 10 "" 'MotDePasse' | cut -d: -f2` (remplacer le préfixe `$2y$` par `$2a$`) ;
+- en production, définir aussi `JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64SECRET` (le secret du profil `dev` ne doit jamais servir).
+
+Les comptes sont activés à l'inscription tant que `application.auto-activate-accounts` vaut `true` (pas de SMTP au MVP).
+Rôles : `ROLE_ADMIN`, `ROLE_USER`, `ROLE_CONTRIBUTOR`, `ROLE_DEVELOPER`, `ROLE_ORGANIZATION`.

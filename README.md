@@ -107,7 +107,13 @@ Fichiers supprimés : `CacheConfiguration`, `CacheKeyGeneratorConfiguration`, `L
 
 Le message de démarrage de l'application tient maintenant sur une ligne, car le journal remplace les retours à la ligne.
 
-### 2. Authentification
+### 2. Endpoints JHipster retirés
+
+- `GET /api/users` (`PublicUserResource`) : listait les identifiants de tous les utilisateurs à n'importe quel utilisateur connecté. Retiré, ainsi que `UserService.getAllPublicUsers` et la requête associée. Un profil public de développeur sera ajouté plus tard, avec seulement les champs voulus.
+- `/api/authorities` (`AuthorityResource`) : création et suppression de rôles par l'API, alors que les rôles sont fixes dans le code. Retiré avec son test.
+- Conservés : `/api/admin/users` (gestion des comptes par l'administrateur, réservée à `ROLE_ADMIN`) et `/api/account` (profil, mot de passe).
+
+### 3. Authentification
 
 Détaillée dans la section suivante. Code ajouté :
 
@@ -139,6 +145,7 @@ Détaillée dans la section suivante. Code ajouté :
 | `POST /api/authenticate/logout`  | public (cookie) | 204, session révoquée, cookie effacé                                                                  |
 | `GET /api/authenticate`          | public          | 204 si connecté, 401 sinon                                                                            |
 | `POST /api/register`             | public          | 201 ; 400 si rôle absent ou interdit, ou consentement périmé                                          |
+| `GET /api/consent/current`       | public          | `{ "version": "2026-10-v1" }` : version à afficher puis renvoyer dans `consentVersion`                |
 
 Corps de `POST /api/register` (en plus des champs JHipster `login`, `email`, `password`, `firstName`, `lastName`, `langKey`) :
 
@@ -209,9 +216,7 @@ Aucun résultat n'est affiché ici tant qu'ils n'ont pas tourné.
 Dans l'ordre du planning (semaine 1, jusqu'au 11 octobre) :
 
 1. Lancer les tests (`./mvnw verify` avec Docker) et corriger ce qui casse, puis commiter.
-2. Endpoint public donnant la version de consentement en vigueur, pour le frontend.
-3. Supprimer ou adapter les endpoints d'administration superflus.
-4. Frontend Angular (PWA, mobile d'abord, droite à gauche) : connexion, inscription.
-5. Entités métier : langue, campagne, phrase, enregistrement ; envoi audio avec validation du type et de la taille.
-6. Premier déploiement sur Datacloud : Docker Compose (API, PostgreSQL, nginx), HTTPS Let's Encrypt.
-7. Fin du projet : inventaire des licences, schéma d'architecture, journal des décisions, déclaration de l'usage de l'IA, question licences à Systalink.
+2. Frontend Angular (PWA, mobile d'abord, droite à gauche) : connexion, inscription.
+3. Entités métier : langue, campagne, phrase, enregistrement ; envoi audio avec validation du type et de la taille.
+4. Premier déploiement sur Datacloud : Docker Compose (API, PostgreSQL, nginx), HTTPS Let's Encrypt.
+5. Fin du projet : inventaire des licences, schéma d'architecture, journal des décisions, déclaration de l'usage de l'IA, question licences à Systalink.

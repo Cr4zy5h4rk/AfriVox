@@ -40,6 +40,7 @@ public class SecurityConfiguration {
                 authz
                     .requestMatchers(HttpMethod.POST, "/api/authenticate").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/authenticate").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/consent/current").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/authenticate/refresh").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/authenticate/logout").permitAll()
                     .requestMatchers("/api/register").permitAll()

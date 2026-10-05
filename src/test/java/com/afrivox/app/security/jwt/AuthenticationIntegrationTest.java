@@ -5,7 +5,6 @@ import com.afrivox.app.config.SecurityJwtConfiguration;
 import com.afrivox.app.config.WebConfigurer;
 import com.afrivox.app.management.SecurityMetersService;
 import com.afrivox.app.service.LoginAttemptService;
-import com.afrivox.app.service.LoginAttemptService;
 import com.afrivox.app.web.rest.AuthenticateController;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -28,8 +27,6 @@ import tech.jhipster.config.JHipsterProperties;
         SecurityJwtConfiguration.class,
         SecurityMetersService.class,
         AuthenticateController.class,
-        LoginAttemptService.class,
-        AuthenticationTestBeans.class,
         LoginAttemptService.class,
         AuthenticationTestBeans.class,
         JwtAuthenticationTestUtils.class,

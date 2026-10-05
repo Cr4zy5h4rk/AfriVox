@@ -12,7 +12,6 @@ import com.afrivox.app.repository.UserRepository;
 import com.afrivox.app.security.AuthoritiesConstants;
 import com.afrivox.app.security.SecurityUtils;
 import com.afrivox.app.service.dto.AdminUserDTO;
-import com.afrivox.app.service.dto.UserDTO;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -288,11 +287,6 @@ public class UserService {
     @Transactional(readOnly = true)
     public Page<AdminUserDTO> getAllManagedUsers(Pageable pageable) {
         return userRepository.findAll(pageable).map(AdminUserDTO::new);
-    }
-
-    @Transactional(readOnly = true)
-    public Page<UserDTO> getAllPublicUsers(Pageable pageable) {
-        return userRepository.findAllByIdNotNullAndActivatedIsTrue(pageable).map(UserDTO::new);
     }
 
     @Transactional(readOnly = true)

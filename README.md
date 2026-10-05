@@ -1,174 +1,217 @@
-# afriVox
+# AfriVox
 
-This application was generated using JHipster 9.3.0, you can find documentation and help at [https://www.jhipster.tech/documentation-archive/v9.3.0](https://www.jhipster.tech/documentation-archive/v9.3.0).
+Plateforme de données vocales africaines (concours CADEV 2026, Systalink). Des contributeurs enregistrent et valident des phrases dans des langues africaines (wolof, pulaar d'abord) ; des développeurs téléchargent des jeux de données et publient des modèles ; des organisations demandent des jeux de données sur mesure.
 
-## Project Structure
+Ce dépôt contient le **backend** : monolithe JHipster 9.3.0 (Spring Boot 4.1.1, Java 21, Maven, PostgreSQL, Liquibase, JWT), sans frontend généré. Le frontend Angular sera une application séparée.
 
-Node is required for generation and recommended for development. `package.json` is always generated for a better development experience with prettier, commit hooks, scripts and so on.
+Le fichier `../CLAUDE.md` décrit le contexte du projet, le règlement du concours et les décisions de stack. Ce README garde la trace de ce qui a été fait dans le code et de la façon de le faire tourner.
 
-In the project root, JHipster generates configuration files for tools like git, prettier, eslint, husky, and others that are well known and you can find references in the web.
+## Sommaire
 
-`/src/*` structure follows default Java structure.
+1. [Démarrage](#démarrage)
+2. [Configuration et secrets](#configuration-et-secrets)
+3. [Journal des modifications](#journal-des-modifications)
+4. [Authentification](#authentification)
+5. [Rôles](#rôles)
+6. [Dépendances et licences](#dépendances-et-licences)
+7. [Tests](#tests)
+8. [Reste à faire](#reste-à-faire)
 
-- `.yo-rc.json` - Yeoman configuration file
-  JHipster configuration is stored in this file at `generator-jhipster` key. You may find `generator-jhipster-*` for specific blueprints configuration.
-- `.yo-resolve` (optional) - Yeoman conflict resolver
-  Allows to use a specific action when conflicts are found skipping prompts for files that matches a pattern. Each line should match `[pattern] [action]` with pattern been a [Minimatch](https://github.com/isaacs/minimatch#minimatch) pattern and action been one of skip (default if omitted) or force. Lines starting with `#` are considered comments and are ignored.
-- `.jhipster/*.json` - JHipster entity configuration files
-- `/src/main/docker` - Docker configurations for the application and services that the application depends on
+## Démarrage
 
-## Development
+### Prérequis
 
-To start your application in the dev profile, run:
+- JDK 21. Sur la machine de développement, celui d'IntelliJ convient : `C:\Program Files\JetBrains\IntelliJ IDEA 2025.1.3\jbr`.
+- Docker Desktop, pour PostgreSQL et pour les tests d'intégration (Testcontainers).
+- Node.js uniquement pour les outils JHipster (prettier, hooks).
 
-```bash
-./mvnw
-```
-
-For further instructions on how to develop with JHipster, have a look at [Using JHipster in development][].
-
-## Building for production
-
-### Packaging as jar
-
-To build the final jar and optimize the afriVox application for production, run:
+### Variables d'environnement pour construire sur Windows
 
 ```bash
-./mvnw -Pprod clean verify
+export JAVA_HOME="/c/Program Files/JetBrains/IntelliJ IDEA 2025.1.3/jbr"
+# Sans cette option, Maven échoue avec une erreur de certificat PKIX sur Maven Central
+export MAVEN_OPTS="-Djavax.net.ssl.trustStoreType=Windows-ROOT"
 ```
 
-To ensure everything worked, run:
+### Lancer en développement
 
 ```bash
-java -jar target/*.jar
+docker compose -f src/main/docker/postgresql.yml up --wait   # base PostgreSQL
+./mvnw                                                       # profil dev, port 8080
 ```
 
-Refer to [Using JHipster in production][] for more details.
+Le profil `dev` inclut `secret-samples` : les secrets de développement y sont des valeurs d'exemple. Voir la section suivante pour le hash du mot de passe administrateur.
 
-### Packaging as war
-
-To package your application as a war in order to deploy it to an application server, run:
+### Construire
 
 ```bash
-./mvnw -Pprod,war clean verify
+./mvnw -Pprod clean verify          # jar de production + tests
+./mvnw -ntp verify -DskipTests -Pprod jib:dockerBuild   # image Docker
 ```
 
-## Testing
+## Configuration et secrets
 
-### Spring Boot tests
+Aucun secret n'est versionné pour la production. Le profil `prod` refuse de démarrer si l'un d'eux manque.
 
-To launch your application's tests, run:
+| Variable d'environnement                                   | Rôle                                                                                                 |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64SECRET`        | Secret de signature des JWT (Base64, 64 octets minimum). Ne jamais réutiliser celui du profil `dev`. |
+| `AFRIVOX_ADMIN_PASSWORD_HASH`                              | Hash BCrypt du mot de passe du compte `admin` créé par Liquibase.                                    |
+| `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` | Accès PostgreSQL.                                                                                    |
+
+Générer le hash BCrypt de l'administrateur :
 
 ```bash
-./mvnw verify
+docker run --rm httpd:2.4-alpine htpasswd -nbBC 10 "" 'MotDePasse' | cut -d: -f2
+# remplacer le préfixe $2y$ par $2a$
 ```
 
-## Others
+En local, remplacer `CHANGE_ME_BCRYPT_HASH` dans `application-secret-samples.yml` (sans commiter le résultat) ou définir `AFRIVOX_ADMIN_PASSWORD_HASH`.
 
-### Code quality using Sonar
+### Propriétés de l'application (`application.*`)
 
-Sonar is used to analyse code quality. You can start a local Sonar server (accessible on http://localhost:9001) with:
+| Propriété                                             | Défaut                                     | Effet                                                                                             |
+| ----------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `auto-activate-accounts`                              | `false` (code), `true` (`application.yml`) | Active les comptes à l'inscription, sans e-mail. À passer à `false` quand le SMTP sera configuré. |
+| `security.refresh-token-validity-seconds`             | 604800 (7 j)                               | Durée du cookie de rafraîchissement.                                                              |
+| `security.refresh-token-remember-me-validity-seconds` | 2592000 (30 j)                             | Durée avec « se souvenir de moi ».                                                                |
+| `security.refresh-cookie-secure`                      | `true`                                     | `false` en développement local (HTTP).                                                            |
+| `security.login-max-attempts`                         | 5                                          | Échecs par couple (IP, identifiant) avant blocage.                                                |
+| `security.ip-max-attempts`                            | 30                                         | Échecs par IP avant blocage.                                                                      |
+| `security.login-lock-seconds`                         | 900                                        | Durée du blocage et fenêtre de comptage.                                                          |
+| `consent.current-version`                             | `2026-10-v1`                               | Version du consentement à accepter à l'inscription.                                               |
 
-```bash
-docker compose -f src/main/docker/sonar.yml up -d
+### Derrière nginx
+
+Le profil `prod` active `server.forward-headers-strategy: native`. nginx doit donc transmettre `X-Forwarded-For` et `X-Forwarded-Proto`, sans quoi la limitation des tentatives voit toujours la même adresse.
+
+## Journal des modifications
+
+État au **5 octobre 2026**. Le dépôt ne contient qu'un commit (génération JHipster) ; les changements ci-dessous ne sont pas encore commités.
+
+### 1. Nettoyage après la génération JHipster
+
+| Sujet                  | Avant                                                            | Après                                                                                                                                                                                          |
+| ---------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Comptes par défaut     | `admin/admin` et `user/user` chargés par CSV                     | Supprimés. L'`admin` est créé par le changeSet Liquibase `00000000000003` à partir de `AFRIVOX_ADMIN_PASSWORD_HASH` ; le démarrage s'arrête si le hash manque. Non exécuté en contexte `test`. |
+| Secret JWT             | Secret de dev partout                                            | Dev uniquement (`secret-samples`) ; production par variable d'environnement.                                                                                                                   |
+| Activation des comptes | E-mail obligatoire, pas de SMTP                                  | `application.auto-activate-accounts`.                                                                                                                                                          |
+| Rôles                  | `ROLE_ADMIN`, `ROLE_USER`                                        | + `ROLE_CONTRIBUTOR`, `ROLE_DEVELOPER`, `ROLE_ORGANIZATION`.                                                                                                                                   |
+| Journalisation         | Logback                                                          | Log4j2 (`spring-boot-starter-log4j2`). Protection contre la falsification de journal : retours à la ligne et tabulations des messages remplacés par `_` (`%replace` dans `log4j2-spring.xml`). |
+| Cache                  | Hazelcast, cache de second niveau Hibernate, `@Cacheable`        | Retirés. Décision du projet : « pas de cache ».                                                                                                                                                |
+| Supervision            | Prometheus, Grafana, Control Center, nombreux endpoints actuator | Retirés. Actuator n'expose plus que `health` et `info`. La règle qui laissait `/management/prometheus` en accès libre est supprimée.                                                           |
+
+Le changeSet initial (`00000000000001`) a été modifié au lieu d'être complété. Si une base locale existe déjà, la recréer, sinon Liquibase signale une erreur de somme de contrôle.
+
+Fichiers supprimés : `CacheConfiguration`, `CacheKeyGeneratorConfiguration`, `LoggingConfiguration` (appenders JSON et Logstash propres à Logback), `CRLFLogConverter` et son test, `logback-spring.xml`, `logback.xml`, `user.csv`, `user_authority.csv`, et les fichiers Docker de Hazelcast, Prometheus, Grafana et du Control Center.
+
+Le message de démarrage de l'application tient maintenant sur une ligne, car le journal remplace les retours à la ligne.
+
+### 2. Authentification
+
+Détaillée dans la section suivante. Code ajouté :
+
+- `AuthenticateController` réécrit (connexion, rafraîchissement, déconnexion, limitation des tentatives).
+- Services `RefreshTokenService`, `LoginAttemptService`, exception `InvalidRefreshTokenException`.
+- Entités `RefreshToken` et `UserConsent`, dépôts associés, changelog `20261005000001_auth_tables.xml`.
+- Inscription avec rôle et consentement (`ManagedUserVM`, `AccountResource`, `UserService`).
+- Mot de passe : 8 caractères minimum (avant : 4).
+- Jeton d'accès de 15 minutes (avant : 24 h), plus de jeton d'accès de 30 jours pour « se souvenir de moi ».
+
+## Authentification
+
+### Principe
+
+- **Jeton d'accès** : JWT court (15 min), renvoyé dans le corps (`id_token`) et l'en-tête `Authorization`. Le frontend le garde en mémoire, pas dans `localStorage`.
+- **Jeton de rafraîchissement** : valeur aléatoire de 256 bits, opaque, dans un cookie `refresh_token` (`HttpOnly`, `Secure`, `SameSite=Strict`, chemin `/api/authenticate`). Il n'est jamais dans le corps de la réponse.
+- **Stockage** : seul le hash SHA-256 est en base (`refresh_token`). Une fuite de la base ne permet pas de rejouer un jeton.
+- **Rotation** : chaque rafraîchissement révoque le jeton présenté et en émet un nouveau, dans la même « famille ».
+- **Détection de rejeu** : présenter un jeton déjà révoqué révoque toute la famille (vol probable). L'utilisateur légitime doit se reconnecter.
+- **CSRF** : le cookie est limité à `/api/authenticate` et `SameSite=Strict`, donc jamais envoyé depuis un autre site. Les autres routes utilisent l'en-tête `Authorization`, qu'un autre site ne peut pas forger.
+- **Fin de session** : changement ou réinitialisation du mot de passe révoque tous les jetons de l'utilisateur. Un utilisateur désactivé ne peut plus rafraîchir. Les jetons expirés sont purgés chaque nuit à 3 h 30.
+
+### Points d'entrée
+
+| Méthode et chemin                | Accès           | Réponse                                                                                               |
+| -------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------- |
+| `POST /api/authenticate`         | public          | 200 + `id_token` + cookie ; 401 si mauvais identifiants ; 429 + `Retry-After` si bloqué               |
+| `POST /api/authenticate/refresh` | public (cookie) | 200 + nouveau `id_token` + nouveau cookie ; 401 + cookie effacé si absent, invalide, expiré ou rejoué |
+| `POST /api/authenticate/logout`  | public (cookie) | 204, session révoquée, cookie effacé                                                                  |
+| `GET /api/authenticate`          | public          | 204 si connecté, 401 sinon                                                                            |
+| `POST /api/register`             | public          | 201 ; 400 si rôle absent ou interdit, ou consentement périmé                                          |
+
+Corps de `POST /api/register` (en plus des champs JHipster `login`, `email`, `password`, `firstName`, `lastName`, `langKey`) :
+
+```json
+{ "role": "CONTRIBUTOR", "consentVersion": "2026-10-v1" }
 ```
 
-Note: we have turned off forced authentication redirect for UI in [src/main/docker/sonar.yml](src/main/docker/sonar.yml) for out of the box experience while trying out SonarQube, for real use cases turn it back on.
+`role` vaut `CONTRIBUTOR`, `DEVELOPER` ou `ORGANIZATION`. `ROLE_ADMIN` ne peut jamais être demandé à l'inscription (validation du modèle et contrôle dans `UserService`).
 
-You can run a Sonar analysis with using the [sonar-scanner](https://docs.sonarqube.org/display/SCAN/Analyzing+with+SonarQube+Scanner) or by using the maven plugin.
+### Limitation des tentatives de connexion
 
-Then, run a Sonar analysis:
+En mémoire (un seul serveur, pas de cache distribué). Deux compteurs :
 
-```bash
-./mvnw -Pprod clean verify sonar:sonar -Dsonar.login=admin -Dsonar.password=admin
-```
+- par couple (adresse IP, identifiant), 5 échecs : freine la devinette d'un mot de passe sans permettre à un tiers de verrouiller le compte d'un autre depuis une autre adresse ;
+- par adresse IP, 30 échecs : freine le balayage de nombreux identifiants.
 
-If you need to re-run the Sonar phase, please be sure to specify at least the `initialize` phase since Sonar properties are loaded from the sonar-project.properties file.
+Au-delà du seuil, 15 minutes de refus, même avec le bon mot de passe. Une connexion réussie remet à zéro le compteur du couple, pas celui de l'adresse. Un redémarrage remet tout à zéro.
 
-```bash
-./mvnw initialize sonar:sonar -Dsonar.login=admin -Dsonar.password=admin
-```
+### Consentement
 
-Additionally, Instead of passing `sonar.password` and `sonar.login` as CLI arguments, these parameters can be configured from [sonar-project.properties](sonar-project.properties) as shown below:
+À l'inscription, la version acceptée doit être `application.consent.current-version`. Elle est enregistrée dans `user_consent` (une ligne par utilisateur et par version, avec la date), supprimée en cascade avec l'utilisateur.
 
-```bash
-sonar.login=admin
-sonar.password=admin
-```
+### Attention côté frontend
 
-For more information, refer to the [Code quality page][].
+- Faire **un seul rafraîchissement à la fois** (« single-flight »). Deux appels simultanés avec le même cookie déclenchent la détection de rejeu et coupent la session.
+- Au démarrage de l'application, appeler `POST /api/authenticate/refresh` pour restaurer la session à partir du cookie.
+- Rafraîchir quand le jeton d'accès expire ou sur une réponse 401.
 
-### Docker Compose support
+## Rôles
 
-JHipster generates a number of Docker Compose configuration files in the [src/main/docker/](src/main/docker/) folder to launch required third party services.
+| Rôle                | Attribué                          | Usage                                      |
+| ------------------- | --------------------------------- | ------------------------------------------ |
+| `ROLE_USER`         | à tous les comptes inscrits       | base                                       |
+| `ROLE_CONTRIBUTOR`  | choix à l'inscription             | enregistrer, transcrire, valider           |
+| `ROLE_DEVELOPER`    | choix à l'inscription             | datasets, modèles, clés d'API              |
+| `ROLE_ORGANIZATION` | choix à l'inscription             | demandes de datasets sur mesure            |
+| `ROLE_ADMIN`        | compte `admin` initial uniquement | étudier les demandes, ouvrir les campagnes |
 
-For example, to start required services in Docker containers, run:
+Les rôles sont vérifiés côté serveur. Les routes `/api/admin/**` exigent `ROLE_ADMIN`.
 
-```bash
-docker compose -f src/main/docker/services.yml up -d
-```
+## Dépendances et licences
 
-To stop and remove the containers, run:
+Contrainte du règlement : licences permissives seulement (MIT, Apache 2.0, BSD). **L'inventaire complet n'est pas encore fait** ; il sera établi à la fin (décision du 5 octobre 2026). Mouvements de dépendances à y reporter :
 
-```bash
-docker compose -f src/main/docker/services.yml down
-```
+| Action  | Dépendance                                                                                                                         | Licence    |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| Ajoutée | `spring-boot-starter-log4j2` (Log4j 2.25.5 : `log4j-core`, `log4j-api`, `log4j-slf4j2-impl`, `log4j-jul`)                          | Apache 2.0 |
+| Retirée | `spring-boot-starter-logging` (Logback)                                                                                            | —          |
+| Retirée | `spring-boot-starter-cache`, `spring-boot-starter-hazelcast`, `hazelcast-hibernate53`, `hazelcast-spring`, `javax.cache:cache-api` | —          |
+| Retirée | `micrometer-registry-prometheus`                                                                                                   | —          |
 
-[Spring Docker Compose Integration](https://docs.spring.io/spring-boot/reference/features/dev-services.html) is enabled by default. It's possible to disable it in `application.yml`:
+Question toujours à poser par écrit à cadev@systalink.com : les bibliothèques non modifiées sous licence double ou à copyleft faible sont-elles acceptées ?
 
-```yaml
-spring:
-  ...
-  docker:
-    compose:
-      enabled: false
-```
+## Tests
 
-You can also fully dockerize your application and all the services that it depends on.
-To achieve this, first build a Docker image of your app by running:
+- **Tests unitaires** (`./mvnw test`) : 33 passaient après le nettoyage (cache, Log4j2, monitoring).
+- **Tests d'intégration** (`./mvnw verify`) : exigent Docker Desktop (Testcontainers PostgreSQL).
+- **Non exécutés à ce jour** : tout ce qui a été écrit pour l'authentification. À lancer avant de commiter :
+  - nouveaux tests unitaires `LoginAttemptServiceTest` et `RefreshTokenServiceTest` ;
+  - nouveaux cas d'intégration dans `AuthenticateControllerIT` (cookie, rotation, rejeu, déconnexion, blocage) et `AccountResourceIT` (rôle, consentement) ;
+  - `AccountResourceIT` existant, modifié pour fournir rôle et consentement ;
+  - `AuthenticationIntegrationTest` (contexte de sécurité sans base), qui charge maintenant `AuthenticationTestBeans`.
 
-```bash
-npm run java:docker
-```
+Aucun résultat n'est affiché ici tant qu'ils n'ont pas tourné.
 
-Or build an arm64 Docker image when using an arm64 processor OS, i.e., Apple Silicon chips (M*), running:
+## Reste à faire
 
-```bash
-npm run java:docker:arm64
-```
+Dans l'ordre du planning (semaine 1, jusqu'au 11 octobre) :
 
-Then run:
-
-```bash
-docker compose -f src/main/docker/app.yml up -d
-```
-
-For more information refer to [Docker and Docker-Compose](https://www.jhipster.tech/documentation-archive/v9.3.0/docker-compose/), this page also contains information on the Docker Compose sub-generator (`jhipster docker-compose`), which is able to generate Docker configurations for one or several JHipster applications.
-
-## Continuous Integration (optional)
-
-To configure CI for your project, run the ci-cd sub-generator (`jhipster ci-cd`), this will let you generate configuration files for a number of Continuous Integration systems. Consult the [Setting up Continuous Integration](https://www.jhipster.tech/documentation-archive/v9.3.0/setting-up-ci/) page for more information.
-
-## References
-
-- [JHipster Homepage and latest documentation](https://www.jhipster.tech/)
-- [JHipster 9.3.0 archive](https://www.jhipster.tech/documentation-archive/v9.3.0)
-- [Using JHipster in development](https://www.jhipster.tech/documentation-archive/v9.3.0/development/)
-- [Using Docker and Docker-Compose](https://www.jhipster.tech/documentation-archive/v9.3.0/docker-compose)
-- [Using JHipster in production](https://www.jhipster.tech/documentation-archive/v9.3.0/production/)
-- [Running tests page](https://www.jhipster.tech/documentation-archive/v9.3.0/running-tests/)
-- [Code quality page](https://www.jhipster.tech/documentation-archive/v9.3.0/code-quality/)
-- [Setting up Continuous Integration](https://www.jhipster.tech/documentation-archive/v9.3.0/setting-up-ci/)
-- [Node.js](https://nodejs.org/)
-- [NPM](https://www.npmjs.com/)
-
-## Secrets et compte administrateur
-
-Aucun compte par défaut n'est créé. Le compte `admin` est inséré par Liquibase à partir d'un hash BCrypt fourni en configuration :
-
-- propriété `afrivox.admin.password-hash` (variable d'environnement `AFRIVOX_ADMIN_PASSWORD_HASH`) ;
-- génération du hash : `docker run --rm httpd:2.4-alpine htpasswd -nbBC 10 "" 'MotDePasse' | cut -d: -f2` (remplacer le préfixe `$2y$` par `$2a$`) ;
-- en production, définir aussi `JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64SECRET` (le secret du profil `dev` ne doit jamais servir).
-
-Les comptes sont activés à l'inscription tant que `application.auto-activate-accounts` vaut `true` (pas de SMTP au MVP).
-Rôles : `ROLE_ADMIN`, `ROLE_USER`, `ROLE_CONTRIBUTOR`, `ROLE_DEVELOPER`, `ROLE_ORGANIZATION`.
+1. Lancer les tests (`./mvnw verify` avec Docker) et corriger ce qui casse, puis commiter.
+2. Endpoint public donnant la version de consentement en vigueur, pour le frontend.
+3. Supprimer ou adapter les endpoints d'administration superflus.
+4. Frontend Angular (PWA, mobile d'abord, droite à gauche) : connexion, inscription.
+5. Entités métier : langue, campagne, phrase, enregistrement ; envoi audio avec validation du type et de la taille.
+6. Premier déploiement sur Datacloud : Docker Compose (API, PostgreSQL, nginx), HTTPS Let's Encrypt.
+7. Fin du projet : inventaire des licences, schéma d'architecture, journal des décisions, déclaration de l'usage de l'IA, question licences à Systalink.

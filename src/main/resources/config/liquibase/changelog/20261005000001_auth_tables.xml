@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Jetons de rafraichissement : seul le hash SHA-256 est stocke (jamais le jeton).
+        family_id relie tous les jetons issus d'une meme connexion : si un jeton deja utilise
+        est presente de nouveau (vol probable), toute la famille est revoquee.
+        Supprime en cascade avec l'utilisateur.
+    -->
+    <changeSet id="20261005000001" author="afrivox">
+        <createTable tableName="refresh_token">
+            <column name="id" type="bigint">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="token_hash" type="varchar(64)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="ux_refresh_token_hash"/>
+            </column>
+            <column name="user_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="family_id" type="varchar(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="remember_me" type="boolean" valueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="revoked" type="boolean" valueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expires_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_date" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="refresh_token" baseColumnNames="user_id"
+                                 constraintName="fk_refresh_token_user"
+                                 referencedTableName="jhi_user" referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+        <createIndex tableName="refresh_token" indexName="idx_refresh_token_user">
+            <column name="user_id"/>
+        </createIndex>
+        <createIndex tableName="refresh_token" indexName="idx_refresh_token_family">
+            <column name="family_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Consentements versionnes : une ligne par version acceptee par un utilisateur. -->
+    <changeSet id="20261005000002" author="afrivox">
+        <createTable tableName="user_consent">
+            <column name="id" type="bigint">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="varchar(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="accepted_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="user_consent" baseColumnNames="user_id"
+                                 constraintName="fk_user_consent_user"
+                                 referencedTableName="jhi_user" referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="user_consent" columnNames="user_id, version"
+                             constraintName="ux_user_consent_user_version"/>
+    </changeSet>
+</databaseChangeLog>

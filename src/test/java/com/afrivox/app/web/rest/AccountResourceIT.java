@@ -8,6 +8,8 @@ import com.afrivox.app.IntegrationTest;
 import com.afrivox.app.config.Constants;
 import com.afrivox.app.domain.User;
 import com.afrivox.app.repository.AuthorityRepository;
+import com.afrivox.app.repository.UserConsentRepository;
+import com.afrivox.app.repository.UserConsentRepository;
 import com.afrivox.app.repository.UserRepository;
 import com.afrivox.app.security.AuthoritiesConstants;
 import com.afrivox.app.service.UserService;
@@ -42,6 +44,10 @@ class AccountResourceIT {
 
     static final String TEST_USER_LOGIN = "test";
 
+    static final String CONSENT_VERSION = "2026-10-v1";
+
+    static final String CONSENT_VERSION = "2026-10-v1";
+
     @Autowired
     private ObjectMapper om;
 
@@ -50,6 +56,12 @@ class AccountResourceIT {
 
     @Autowired
     private AuthorityRepository authorityRepository;
+
+    @Autowired
+    private UserConsentRepository userConsentRepository;
+
+    @Autowired
+    private UserConsentRepository userConsentRepository;
 
     @Autowired
     private UserService userService;
@@ -125,6 +137,10 @@ class AccountResourceIT {
     @Transactional
     void testRegisterValid() throws Exception {
         ManagedUserVM validUser = new ManagedUserVM();
+        validUser.setRole("CONTRIBUTOR");
+        validUser.setConsentVersion(CONSENT_VERSION);
+        validUser.setRole("CONTRIBUTOR");
+        validUser.setConsentVersion(CONSENT_VERSION);
         validUser.setLogin("test-register-valid");
         validUser.setPassword("password");
         validUser.setFirstName("Alice");
@@ -146,8 +162,174 @@ class AccountResourceIT {
 
     @Test
     @Transactional
+    void testRegisterStoresRoleAndConsent() throws Exception {
+        ManagedUserVM user = new ManagedUserVM();
+        user.setRole("CONTRIBUTOR");
+        user.setConsentVersion(CONSENT_VERSION);
+        user.setLogin("test-register-role");
+        user.setPassword("password");
+        user.setEmail("test-register-role@example.com");
+        user.setLangKey(Constants.DEFAULT_LANGUAGE);
+        user.setRole("DEVELOPER");
+        user.setConsentVersion(CONSENT_VERSION);
+        long consentsBefore = userConsentRepository.count();
+
+        restAccountMockMvc
+            .perform(post("/api/register").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(user)))
+            .andExpect(status().isCreated());
+
+        User saved = userRepository.findOneWithAuthoritiesByLogin("test-register-role").orElseThrow();
+        assertThat(saved.getAuthorities()).extracting("name").containsExactlyInAnyOrder("ROLE_USER", "ROLE_DEVELOPER");
+        assertThat(saved.isActivated()).isFalse(); // la configuration de test n'active pas automatiquement
+        assertThat(userConsentRepository.count()).isEqualTo(consentsBefore + 1);
+
+        userService.deleteUser("test-register-role");
+    }
+
+    @Test
+    @Transactional
+    void testRegisterWithoutRoleIsRejected() throws Exception {
+        ManagedUserVM user = new ManagedUserVM();
+        user.setRole("CONTRIBUTOR");
+        user.setConsentVersion(CONSENT_VERSION);
+        user.setLogin("test-register-norole");
+        user.setPassword("password");
+        user.setEmail("test-register-norole@example.com");
+        user.setLangKey(Constants.DEFAULT_LANGUAGE);
+        user.setConsentVersion(CONSENT_VERSION);
+
+        restAccountMockMvc
+            .perform(post("/api/register").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(user)))
+            .andExpect(status().isBadRequest());
+
+        assertThat(userRepository.findOneByLogin("test-register-norole")).isEmpty();
+    }
+
+    @Test
+    @Transactional
+    void testRegisterAdminRoleIsRejected() throws Exception {
+        ManagedUserVM user = new ManagedUserVM();
+        user.setRole("CONTRIBUTOR");
+        user.setConsentVersion(CONSENT_VERSION);
+        user.setLogin("test-register-admin-role");
+        user.setPassword("password");
+        user.setEmail("test-register-admin-role@example.com");
+        user.setLangKey(Constants.DEFAULT_LANGUAGE);
+        user.setRole("ADMIN");
+        user.setConsentVersion(CONSENT_VERSION);
+
+        restAccountMockMvc
+            .perform(post("/api/register").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(user)))
+            .andExpect(status().isBadRequest());
+
+        assertThat(userRepository.findOneByLogin("test-register-admin-role")).isEmpty();
+    }
+
+    @Test
+    @Transactional
+    void testRegisterWithOutdatedConsentIsRejected() throws Exception {
+        ManagedUserVM user = new ManagedUserVM();
+        user.setRole("CONTRIBUTOR");
+        user.setConsentVersion(CONSENT_VERSION);
+        user.setLogin("test-register-consent");
+        user.setPassword("password");
+        user.setEmail("test-register-consent@example.com");
+        user.setLangKey(Constants.DEFAULT_LANGUAGE);
+        user.setRole("CONTRIBUTOR");
+        user.setConsentVersion("1999-01-v0");
+
+        restAccountMockMvc
+            .perform(post("/api/register").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(user)))
+            .andExpect(status().isBadRequest());
+
+        assertThat(userRepository.findOneByLogin("test-register-consent")).isEmpty();
+    }
+
+    @Test
+    @Transactional
+    void testRegisterStoresRoleAndConsent() throws Exception {
+        ManagedUserVM user = new ManagedUserVM();
+        user.setLogin("test-register-role");
+        user.setPassword("password");
+        user.setEmail("test-register-role@example.com");
+        user.setLangKey(Constants.DEFAULT_LANGUAGE);
+        user.setRole("DEVELOPER");
+        user.setConsentVersion(CONSENT_VERSION);
+        long consentsBefore = userConsentRepository.count();
+
+        restAccountMockMvc
+            .perform(post("/api/register").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(user)))
+            .andExpect(status().isCreated());
+
+        User saved = userRepository.findOneWithAuthoritiesByLogin("test-register-role").orElseThrow();
+        assertThat(saved.getAuthorities()).extracting("name").containsExactlyInAnyOrder("ROLE_USER", "ROLE_DEVELOPER");
+        assertThat(saved.isActivated()).isFalse(); // la configuration de test n'active pas automatiquement
+        assertThat(userConsentRepository.count()).isEqualTo(consentsBefore + 1);
+
+        userService.deleteUser("test-register-role");
+    }
+
+    @Test
+    @Transactional
+    void testRegisterWithoutRoleIsRejected() throws Exception {
+        ManagedUserVM user = new ManagedUserVM();
+        user.setLogin("test-register-norole");
+        user.setPassword("password");
+        user.setEmail("test-register-norole@example.com");
+        user.setLangKey(Constants.DEFAULT_LANGUAGE);
+        user.setConsentVersion(CONSENT_VERSION);
+
+        restAccountMockMvc
+            .perform(post("/api/register").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(user)))
+            .andExpect(status().isBadRequest());
+
+        assertThat(userRepository.findOneByLogin("test-register-norole")).isEmpty();
+    }
+
+    @Test
+    @Transactional
+    void testRegisterAdminRoleIsRejected() throws Exception {
+        ManagedUserVM user = new ManagedUserVM();
+        user.setLogin("test-register-admin-role");
+        user.setPassword("password");
+        user.setEmail("test-register-admin-role@example.com");
+        user.setLangKey(Constants.DEFAULT_LANGUAGE);
+        user.setRole("ADMIN");
+        user.setConsentVersion(CONSENT_VERSION);
+
+        restAccountMockMvc
+            .perform(post("/api/register").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(user)))
+            .andExpect(status().isBadRequest());
+
+        assertThat(userRepository.findOneByLogin("test-register-admin-role")).isEmpty();
+    }
+
+    @Test
+    @Transactional
+    void testRegisterWithOutdatedConsentIsRejected() throws Exception {
+        ManagedUserVM user = new ManagedUserVM();
+        user.setLogin("test-register-consent");
+        user.setPassword("password");
+        user.setEmail("test-register-consent@example.com");
+        user.setLangKey(Constants.DEFAULT_LANGUAGE);
+        user.setRole("CONTRIBUTOR");
+        user.setConsentVersion("1999-01-v0");
+
+        restAccountMockMvc
+            .perform(post("/api/register").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(user)))
+            .andExpect(status().isBadRequest());
+
+        assertThat(userRepository.findOneByLogin("test-register-consent")).isEmpty();
+    }
+
+    @Test
+    @Transactional
     void testRegisterInvalidLogin() throws Exception {
         ManagedUserVM invalidUser = new ManagedUserVM();
+        invalidUser.setRole("CONTRIBUTOR");
+        invalidUser.setConsentVersion(CONSENT_VERSION);
+        invalidUser.setRole("CONTRIBUTOR");
+        invalidUser.setConsentVersion(CONSENT_VERSION);
         invalidUser.setLogin("funky-log(n"); // <-- invalid
         invalidUser.setPassword("password");
         invalidUser.setFirstName("Funky");
@@ -195,6 +377,10 @@ class AccountResourceIT {
         boolean activated
     ) {
         ManagedUserVM invalidUser = new ManagedUserVM();
+        invalidUser.setRole("CONTRIBUTOR");
+        invalidUser.setConsentVersion(CONSENT_VERSION);
+        invalidUser.setRole("CONTRIBUTOR");
+        invalidUser.setConsentVersion(CONSENT_VERSION);
         invalidUser.setLogin(login);
         invalidUser.setPassword(password);
         invalidUser.setFirstName(firstName);
@@ -212,6 +398,10 @@ class AccountResourceIT {
     void testRegisterDuplicateLogin() throws Exception {
         // First registration
         ManagedUserVM firstUser = new ManagedUserVM();
+        firstUser.setRole("CONTRIBUTOR");
+        firstUser.setConsentVersion(CONSENT_VERSION);
+        firstUser.setRole("CONTRIBUTOR");
+        firstUser.setConsentVersion(CONSENT_VERSION);
         firstUser.setLogin("alice");
         firstUser.setPassword("password");
         firstUser.setFirstName("Alice");
@@ -223,6 +413,10 @@ class AccountResourceIT {
 
         // Duplicate login, different email
         ManagedUserVM secondUser = new ManagedUserVM();
+        secondUser.setRole("CONTRIBUTOR");
+        secondUser.setConsentVersion(CONSENT_VERSION);
+        secondUser.setRole("CONTRIBUTOR");
+        secondUser.setConsentVersion(CONSENT_VERSION);
         secondUser.setLogin(firstUser.getLogin());
         secondUser.setPassword(firstUser.getPassword());
         secondUser.setFirstName(firstUser.getFirstName());
@@ -264,6 +458,10 @@ class AccountResourceIT {
     void testRegisterDuplicateEmail() throws Exception {
         // First user
         ManagedUserVM firstUser = new ManagedUserVM();
+        firstUser.setRole("CONTRIBUTOR");
+        firstUser.setConsentVersion(CONSENT_VERSION);
+        firstUser.setRole("CONTRIBUTOR");
+        firstUser.setConsentVersion(CONSENT_VERSION);
         firstUser.setLogin("test-register-duplicate-email");
         firstUser.setPassword("password");
         firstUser.setFirstName("Alice");
@@ -283,6 +481,10 @@ class AccountResourceIT {
 
         // Duplicate email, different login
         ManagedUserVM secondUser = new ManagedUserVM();
+        secondUser.setRole("CONTRIBUTOR");
+        secondUser.setConsentVersion(CONSENT_VERSION);
+        secondUser.setRole("CONTRIBUTOR");
+        secondUser.setConsentVersion(CONSENT_VERSION);
         secondUser.setLogin("test-register-duplicate-email-2");
         secondUser.setPassword(firstUser.getPassword());
         secondUser.setFirstName(firstUser.getFirstName());
@@ -305,6 +507,10 @@ class AccountResourceIT {
 
         // Duplicate email - with uppercase email address
         ManagedUserVM userWithUpperCaseEmail = new ManagedUserVM();
+        userWithUpperCaseEmail.setRole("CONTRIBUTOR");
+        userWithUpperCaseEmail.setConsentVersion(CONSENT_VERSION);
+        userWithUpperCaseEmail.setRole("CONTRIBUTOR");
+        userWithUpperCaseEmail.setConsentVersion(CONSENT_VERSION);
         userWithUpperCaseEmail.setId(firstUser.getId());
         userWithUpperCaseEmail.setLogin("test-register-duplicate-email-3");
         userWithUpperCaseEmail.setPassword(firstUser.getPassword());
@@ -339,6 +545,10 @@ class AccountResourceIT {
     @Transactional
     void testRegisterAdminIsIgnored() throws Exception {
         ManagedUserVM validUser = new ManagedUserVM();
+        validUser.setRole("CONTRIBUTOR");
+        validUser.setConsentVersion(CONSENT_VERSION);
+        validUser.setRole("CONTRIBUTOR");
+        validUser.setConsentVersion(CONSENT_VERSION);
         validUser.setLogin("badguy");
         validUser.setPassword("password");
         validUser.setFirstName("Bad");

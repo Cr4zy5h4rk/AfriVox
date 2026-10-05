@@ -13,6 +13,10 @@ public class ApplicationProperties {
 
     private final Liquibase liquibase = new Liquibase();
 
+    private final Security security = new Security();
+
+    private final Consent consent = new Consent();
+
     /** Active les comptes a l inscription (sans e-mail d activation). Faux par defaut. */
     private boolean autoActivateAccounts = false;
 
@@ -30,6 +34,14 @@ public class ApplicationProperties {
         this.autoActivateAccounts = autoActivateAccounts;
     }
 
+    public Security getSecurity() {
+        return security;
+    }
+
+    public Consent getConsent() {
+        return consent;
+    }
+
     // jhipster-needle-application-properties-property-getter
 
     public static class Liquibase {
@@ -42,6 +54,90 @@ public class ApplicationProperties {
 
         public void setAsyncStart(Boolean asyncStart) {
             this.asyncStart = asyncStart;
+        }
+    }
+
+    /** Parametres d'authentification : jeton de rafraichissement et limitation des tentatives de connexion. */
+    public static class Security {
+
+        /** Duree de vie du jeton de rafraichissement (7 jours). */
+        private long refreshTokenValiditySeconds = 604_800;
+
+        /** Duree de vie avec "se souvenir de moi" (30 jours). */
+        private long refreshTokenRememberMeValiditySeconds = 2_592_000;
+
+        /** Attribut Secure du cookie : vrai partout sauf en developpement local en HTTP. */
+        private boolean refreshCookieSecure = true;
+
+        /** Echecs toleres pour un couple (adresse IP, identifiant) avant blocage. */
+        private int loginMaxAttempts = 5;
+
+        /** Echecs toleres pour une adresse IP (tous identifiants confondus) avant blocage. */
+        private int ipMaxAttempts = 30;
+
+        /** Duree du blocage, et fenetre de comptage des echecs. */
+        private long loginLockSeconds = 900;
+
+        public long getRefreshTokenValiditySeconds() {
+            return refreshTokenValiditySeconds;
+        }
+
+        public void setRefreshTokenValiditySeconds(long refreshTokenValiditySeconds) {
+            this.refreshTokenValiditySeconds = refreshTokenValiditySeconds;
+        }
+
+        public long getRefreshTokenRememberMeValiditySeconds() {
+            return refreshTokenRememberMeValiditySeconds;
+        }
+
+        public void setRefreshTokenRememberMeValiditySeconds(long refreshTokenRememberMeValiditySeconds) {
+            this.refreshTokenRememberMeValiditySeconds = refreshTokenRememberMeValiditySeconds;
+        }
+
+        public boolean isRefreshCookieSecure() {
+            return refreshCookieSecure;
+        }
+
+        public void setRefreshCookieSecure(boolean refreshCookieSecure) {
+            this.refreshCookieSecure = refreshCookieSecure;
+        }
+
+        public int getLoginMaxAttempts() {
+            return loginMaxAttempts;
+        }
+
+        public void setLoginMaxAttempts(int loginMaxAttempts) {
+            this.loginMaxAttempts = loginMaxAttempts;
+        }
+
+        public int getIpMaxAttempts() {
+            return ipMaxAttempts;
+        }
+
+        public void setIpMaxAttempts(int ipMaxAttempts) {
+            this.ipMaxAttempts = ipMaxAttempts;
+        }
+
+        public long getLoginLockSeconds() {
+            return loginLockSeconds;
+        }
+
+        public void setLoginLockSeconds(long loginLockSeconds) {
+            this.loginLockSeconds = loginLockSeconds;
+        }
+    }
+
+    /** Consentement : version du texte que l'utilisateur doit accepter a l'inscription. */
+    public static class Consent {
+
+        private String currentVersion = "2026-10-v1";
+
+        public String getCurrentVersion() {
+            return currentVersion;
+        }
+
+        public void setCurrentVersion(String currentVersion) {
+            this.currentVersion = currentVersion;
         }
     }
 

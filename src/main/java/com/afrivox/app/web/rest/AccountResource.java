@@ -1,5 +1,6 @@
 package com.afrivox.app.web.rest;
 
+import com.afrivox.app.config.ApplicationProperties;
 import com.afrivox.app.domain.User;
 import com.afrivox.app.repository.UserRepository;
 import com.afrivox.app.security.SecurityUtils;
@@ -48,16 +49,20 @@ public class AccountResource {
 
     private final PasswordEncoder passwordEncoder;
 
+    private final ApplicationProperties applicationProperties;
+
     public AccountResource(
         UserRepository userRepository,
         UserService userService,
         MailService mailService,
-        PasswordEncoder passwordEncoder
+        PasswordEncoder passwordEncoder,
+        ApplicationProperties applicationProperties
     ) {
         this.userRepository = userRepository;
         this.userService = userService;
         this.mailService = mailService;
         this.passwordEncoder = passwordEncoder;
+        this.applicationProperties = applicationProperties;
     }
 
     /**
@@ -75,7 +80,19 @@ public class AccountResource {
         if (isPasswordLengthInvalid(managedUserVM.getPassword())) {
             throw new InvalidPasswordException();
         }
-        User user = userService.registerUser(managedUserVM, managedUserVM.getPassword());
+        if (managedUserVM.getRole() == null) {
+            throw new BadRequestAlertException("A role is required", "account", "rolerequired");
+        }
+        // Le consentement doit porter sur la version en vigueur : preuve juridique et RGPD
+        if (!applicationProperties.getConsent().getCurrentVersion().equals(managedUserVM.getConsentVersion())) {
+            throw new BadRequestAlertException("The current consent version must be accepted", "account", "consentrequired");
+        }
+        User user = userService.registerUser(
+            managedUserVM,
+            managedUserVM.getPassword(),
+            "ROLE_" + managedUserVM.getRole(),
+            managedUserVM.getConsentVersion()
+        );
         if (!user.isActivated()) {
             mailService.sendActivationEmail(user);
         }

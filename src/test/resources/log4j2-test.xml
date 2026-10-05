@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} %5p [%t] %c{1.} : %replace{%m}{[\r\n\t]}{_}%n%xEx"/>
+        </Console>
+    </Appenders>
+
+    <Loggers>
+        <Logger name="com.afrivox.app" level="INFO"/>
+        <Logger name="tech.jhipster" level="WARN"/>
+
+        <!-- https://www.testcontainers.org/supported_docker_environment/logging_config/ -->
+        <Logger name="org.testcontainers" level="INFO"/>
+        <Logger name="com.github.dockerjava" level="WARN"/>
+
+        <Logger name="jakarta.activation" level="WARN"/>
+        <Logger name="jakarta.mail" level="WARN"/>
+        <Logger name="jakarta.xml.bind" level="WARN"/>
+        <Logger name="com.jayway.jsonpath" level="WARN"/>
+        <Logger name="com.sun" level="WARN"/>
+        <Logger name="com.zaxxer" level="WARN"/>
+        <Logger name="org.apache" level="WARN"/>
+        <Logger name="org.apache.catalina.startup.DigesterFactory" level="OFF"/>
+        <Logger name="org.hibernate.validator" level="WARN"/>
+        <Logger name="org.hibernate" level="WARN"/>
+        <Logger name="org.hibernate.ejb.HibernatePersistence" level="OFF"/>
+        <Logger name="org.postgresql.jdbc" level="WARN"/>
+        <Logger name="org.springframework" level="WARN"/>
+        <Logger name="org.thymeleaf" level="WARN"/>
+        <Logger name="io.swagger.v3" level="INFO"/>
+        <Logger name="com.tngtech.archunit.core.importer" level="ERROR"/>
+        <Logger name="org.hibernate.orm.incubating" level="ERROR"/>
+        <Logger name="liquibase" level="WARN"/>
+        <Logger name="LiquibaseSchemaResolver" level="INFO"/>
+
+        <Root level="INFO">
+            <AppenderRef ref="Console"/>
+        </Root>
+    </Loggers>
+</Configuration>

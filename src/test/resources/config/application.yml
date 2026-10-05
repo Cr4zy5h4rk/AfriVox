@@ -62,14 +62,6 @@ jhipster:
   mail:
     from: afriVox@localhost.com
     base-url: http://127.0.0.1:8080
-  logging:
-    # To test json console appender
-    use-json-format: false
-    logstash:
-      enabled: false
-      host: localhost
-      port: 5000
-      ring-buffer-size: 512
   security:
     authentication:
       jwt:

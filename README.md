@@ -53,14 +53,6 @@ To package your application as a war in order to deploy it to an application ser
 ./mvnw -Pprod,war clean verify
 ```
 
-### JHipster Control Center
-
-JHipster Control Center can help you manage and control your application(s). You can start a local control center server (accessible on http://localhost:7419) with:
-
-```bash
-docker compose -f src/main/docker/jhipster-control-center.yml up
-```
-
 ## Testing
 
 ### Spring Boot tests

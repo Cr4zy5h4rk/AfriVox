@@ -6,17 +6,20 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
+import java.util.ArrayList;
 import java.util.List;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.Signature;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 
@@ -27,9 +30,9 @@ class LoggingAspectTest {
 
     private final Environment env = mock(Environment.class);
     private final ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
-    private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    private final ListAppender appender = new ListAppender();
     private LoggingAspect aspect;
-    private Logger logger;
+    private LoggerConfig loggerConfig;
 
     @BeforeEach
     void setup() {
@@ -40,22 +43,33 @@ class LoggingAspectTest {
         when(joinPoint.getArgs()).thenReturn(new Object[] { "arg" });
         when(env.acceptsProfiles(any(Profiles.class))).thenReturn(true);
 
-        logger = (Logger) LoggerFactory.getLogger(DECLARING_TYPE);
-        logger.setLevel(Level.DEBUG);
+        // Appender Log4j2 en memoire rattache au logger teste, niveau DEBUG
+        LoggerContext context = (LoggerContext) LogManager.getContext(false);
+        Configuration config = context.getConfiguration();
         appender.start();
-        logger.addAppender(appender);
+        config.addAppender(appender);
+        loggerConfig = new LoggerConfig(DECLARING_TYPE, Level.DEBUG, false);
+        loggerConfig.addAppender(appender, Level.DEBUG, null);
+        config.addLogger(DECLARING_TYPE, loggerConfig);
+        context.updateLoggers();
 
         aspect = new LoggingAspect(env);
     }
 
     @AfterEach
     void teardown() {
-        logger.detachAppender(appender);
-        logger.setLevel(null);
+        LoggerContext context = (LoggerContext) LogManager.getContext(false);
+        context.getConfiguration().removeLogger(DECLARING_TYPE);
+        loggerConfig.removeAppender(appender.getName());
+        appender.stop();
+        context.updateLoggers();
     }
 
     private List<String> messages() {
-        return appender.list.stream().map(ILoggingEvent::getFormattedMessage).toList();
+        return appender.events
+            .stream()
+            .map(e -> e.getMessage().getFormattedMessage())
+            .toList();
     }
 
     @Test
@@ -87,7 +101,7 @@ class LoggingAspectTest {
         aspect.logAfterThrowing(joinPoint, new IllegalStateException("failed"));
 
         assertThat(messages()).containsExactly("Exception in loggedMethod() with cause = 'NULL' and exception = 'failed'");
-        assertThat(appender.list.get(0).getThrowableProxy()).isNotNull();
+        assertThat(appender.events.get(0).getThrown()).isNotNull();
     }
 
     @Test
@@ -97,6 +111,21 @@ class LoggingAspectTest {
         aspect.logAfterThrowing(joinPoint, new IllegalStateException("failed", new RuntimeException("root")));
 
         assertThat(messages()).containsExactly("Exception in loggedMethod() with cause = java.lang.RuntimeException: root");
-        assertThat(appender.list.get(0).getThrowableProxy()).isNull();
+        assertThat(appender.events.get(0).getThrown()).isNull();
+    }
+
+    /** Appender Log4j2 minimal qui garde les evenements en memoire pour les assertions. */
+    private static final class ListAppender extends AbstractAppender {
+
+        private final List<LogEvent> events = new ArrayList<>();
+
+        ListAppender() {
+            super("LoggingAspectTestAppender", null, null, true, org.apache.logging.log4j.core.config.Property.EMPTY_ARRAY);
+        }
+
+        @Override
+        public void append(LogEvent event) {
+            events.add(event.toImmutable());
+        }
     }
 }

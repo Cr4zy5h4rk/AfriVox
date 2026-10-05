@@ -1,7 +1,6 @@
 package com.afrivox.app;
 
 import com.afrivox.app.config.ApplicationProperties;
-import com.afrivox.app.config.CRLFLogConverter;
 import jakarta.annotation.PostConstruct;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -65,21 +64,6 @@ public class AfriVoxApp {
      * @param args the command line arguments.
      */
     public static void main(String[] args) {
-        try {
-            // Workaround Hazelcast issue: https://github.com/hazelcast/hazelcast/issues/26361#issuecomment-2489778475
-            Class.forName(
-                "org.springframework.boot.devtools.autoconfigure.DevToolsProperties",
-                false,
-                SpringApplication.class.getClassLoader()
-            );
-            System.setProperty("spring.devtools.restart.enabled", "false");
-            LOG.warn(
-                "Spring Boot Developer Tools restart has been disabled using System property in order to prevent issues with Hazelcast"
-            );
-        } catch (Exception e) {
-            // Devtools not found, ignore
-        }
-
         var app = new SpringApplication(AfriVoxApp.class);
         DefaultProfileUtil.addDefaultProfile(app);
         Environment env = app.run(args).getEnvironment();
@@ -101,16 +85,9 @@ public class AfriVoxApp {
         } catch (UnknownHostException e) {
             LOG.warn("The host name could not be determined, using `localhost` as fallback");
         }
+        // Une seule ligne : le journal remplace les retours a la ligne (protection Log Forging)
         LOG.info(
-            CRLFLogConverter.CRLF_SAFE_MARKER,
-            """
-
-            ----------------------------------------------------------
-            \tApplication '{}' is running! Access URLs:
-            \tLocal: \t\t{}://localhost:{}{}
-            \tExternal: \t{}://{}:{}{}
-            \tProfile(s): \t{}
-            ----------------------------------------------------------""",
+            "Application '{}' is running! Local: {}://localhost:{}{} | External: {}://{}:{}{} | Profile(s): {}",
             applicationName,
             protocol,
             serverPort,

@@ -25,23 +25,14 @@ springdoc:
     enabled: false
 ---
 management:
+  # Exposition minimale : seuls health et info (aucun env, metriques, loggers, threaddump, prometheus)
   endpoints:
     web:
       base-path: /management
       exposure:
         include:
-          - configprops
-          - env
           - health
           - info
-          - jhimetrics
-          - jhiopenapigroups
-          - logfile
-          - loggers
-          - prometheus
-          - threaddump
-          - caches
-          - liquibase
   endpoint:
     health:
       show-details: when_authorized
@@ -53,42 +44,9 @@ management:
           include: livenessState
         readiness:
           include: readinessState,db
-    jhimetrics:
-      access: read-only
-  info:
-    git:
-      mode: full
-    env:
-      enabled: true
   health:
     mail:
       enabled: false # When using the MailService, configure an SMTP server and set this to true
-  prometheus:
-    metrics:
-      export:
-        enabled: true
-        step: 60
-  observations:
-    key-values:
-      application: ${spring.application.name}
-  metrics:
-    enable:
-      http: true
-      jvm: true
-      logback: true
-      process: true
-      system: true
-    distribution:
-      percentiles-histogram:
-        all: true
-      percentiles:
-        all: 0, 0.5, 0.75, 0.95, 0.99, 1.0
-    data:
-      repository:
-        autotime:
-          enabled: true
-    tags:
-      application: ${spring.application.name}
 
 spring:
   application:
@@ -127,8 +85,6 @@ spring:
       hibernate.type.preferred_instant_jdbc_type: TIMESTAMP
       hibernate.id.new_generator_mappings: true
       hibernate.connection.provider_disables_autocommit: true
-      hibernate.cache.use_second_level_cache: true
-      hibernate.cache.use_query_cache: false
       hibernate.generate_statistics: false
       # modify batch size as necessary
       hibernate.jdbc.batch_size: 25
@@ -136,10 +92,6 @@ spring:
       hibernate.order_updates: true
       hibernate.query.fail_on_pagination_over_collection_fetch: true
       hibernate.query.in_clause_parameter_padding: true
-      hibernate.cache.region.factory_class: com.hazelcast.hibernate.HazelcastCacheRegionFactory
-      hibernate.cache.use_minimal_puts: true
-      hibernate.cache.hazelcast.instance_name: afriVox
-      hibernate.cache.hazelcast.use_lite_member: true
     hibernate:
       ddl-auto: none
       naming:

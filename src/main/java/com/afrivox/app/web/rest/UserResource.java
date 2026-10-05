@@ -47,9 +47,8 @@ import tech.jhipster.web.util.ResponseUtil;
  * the time for nothing (for performance reasons). This is the #1 goal: we should not impact our users'
  * application because of this use-case.</li>
  * <li> Not having an outer join causes n+1 requests to the database. This is not a real issue as
- * we have by default a second-level cache. This means on the first HTTP call we do the n+1 requests,
- * but then all authorities come from the cache, so in fact it's much better than doing an outer join
- * (which will get lots of data from the database, for each HTTP call).</li>
+ * the authorities are loaded in batches (@BatchSize on User.authorities), which limits the number of requests
+ * and is cheaper than an outer join (which would fetch lots of data for each HTTP call). Pas de cache : decision du projet.</li>
  * <li> As this manages users, for security reasons, we'd rather have a DTO layer.</li>
  * </ul>
  * <p>

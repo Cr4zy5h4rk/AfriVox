@@ -162,6 +162,18 @@ Stockage : `application.audio.storage-dir` (défaut `data/audio`, ignoré par gi
 
 Limites connues : la durée est celle annoncée par le client (le contrôle qualité devra la recalculer) ; le fichier est lu en mémoire (5 Mo max) ; aucune limitation du nombre d'envois par minute ; les contrôles qualité (silence, bruit, doublons proches) ne sont pas faits. Test unitaire `AudioFormatTest` écrit, non lancé.
 
+### 6. Phrases à enregistrer et jeu de départ (6 octobre 2026)
+
+- `GET /api/me/campaigns` : campagnes actives et non privées, avec la langue (code, nom, écriture, sens de lecture), le nombre de phrases et ce que j'ai déjà enregistré. Tout est calculé à la demande.
+- `GET /api/me/campaigns/{id}/todo?limit=10` : prochaines phrases que je n'ai pas encore enregistrées (maximum 50). Un envoi rejeté ou retiré ne compte pas, on peut recommencer. Plusieurs contributeurs peuvent lire la même phrase (voix différentes). 404 si la campagne est inconnue, fermée ou privée (même réponse, rien n'est révélé). Réservé à `ROLE_CONTRIBUTOR` et `ROLE_ADMIN`.
+- L'envoi d'audio refuse aussi les campagnes privées.
+- **Données de développement** : `20261006200000_seed_dev_wolof.xml`, contexte `dev` uniquement : la langue wolof (active, 3 validateurs minimum), une campagne ouverte et 10 phrases courtes. Ces phrases sont **à faire relire par un locuteur wolof** avant toute démonstration publique. Aucune statistique n'y est inventée.
+- Le contexte Liquibase `faker` est retiré de `application-dev.yml` : ses données aléatoires (langues absurdes, campagnes actives) étaient inutilisables.
+
+**Si la base locale existe déjà** (avec les données `faker` ou sans la graine), la recréer : `docker compose -f src/main/docker/postgresql.yml down -v` puis `up --wait`. Sinon Liquibase peut signaler un conflit d'identifiants.
+
+Non fait : les phrases ne sont pas mélangées ni réparties entre contributeurs, et aucune limite de débit n'existe sur ces endpoints.
+
 ## Authentification
 
 ### Principe

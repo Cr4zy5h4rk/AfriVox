@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Jeu de départ pour le développement : une langue, une campagne active, dix phrases courtes.
+        Contexte "dev" uniquement : jamais chargé en production (là, l'admin crée les campagnes).
+        Aucune statistique inventée : seulement des phrases à lire.
+        À FAIRE RELIRE par un locuteur wolof avant toute démonstration publique (orthographe, naturel).
+        Les identifiants (1, 2…) sont inférieurs au départ de sequence_generator (1050) : pas de collision.
+    -->
+    <changeSet id="20261006200000-1-seed-wolof" author="afrivox" context="dev">
+        <insert tableName="language">
+            <column name="id" valueNumeric="1"/>
+            <column name="code" value="wo"/>
+            <column name="name" value="Wolof"/>
+            <column name="script" value="LATIN"/>
+            <column name="direction" value="LTR"/>
+            <column name="status" value="ACTIVE"/>
+            <column name="min_validators" valueNumeric="3"/>
+        </insert>
+
+        <insert tableName="campaign">
+            <column name="id" valueNumeric="1"/>
+            <column name="title" value="Phrases du quotidien (wolof)"/>
+            <column name="description" value="Salutations et phrases courtes de la vie de tous les jours. Lisez chaque phrase à voix haute, dans un endroit calme."/>
+            <column name="domain" value="quotidien"/>
+            <column name="kind" value="OPEN"/>
+            <column name="status" value="ACTIVE"/>
+            <column name="target_sentences" valueNumeric="10"/>
+            <column name="created_at" valueComputed="${now}"/>
+            <column name="language_id" valueNumeric="1"/>
+        </insert>
+
+        <insert tableName="prompt">
+            <column name="id" valueNumeric="1"/>
+            <column name="content" value="Salaam maalekum."/>
+            <column name="campaign_id" valueNumeric="1"/>
+        </insert>
+        <insert tableName="prompt">
+            <column name="id" valueNumeric="2"/>
+            <column name="content" value="Nanga def ?"/>
+            <column name="campaign_id" valueNumeric="1"/>
+        </insert>
+        <insert tableName="prompt">
+            <column name="id" valueNumeric="3"/>
+            <column name="content" value="Maa ngi fi rekk."/>
+            <column name="campaign_id" valueNumeric="1"/>
+        </insert>
+        <insert tableName="prompt">
+            <column name="id" valueNumeric="4"/>
+            <column name="content" value="Naka sa waa kër ?"/>
+            <column name="campaign_id" valueNumeric="1"/>
+        </insert>
+        <insert tableName="prompt">
+            <column name="id" valueNumeric="5"/>
+            <column name="content" value="Jërëjëf."/>
+            <column name="campaign_id" valueNumeric="1"/>
+        </insert>
+        <insert tableName="prompt">
+            <column name="id" valueNumeric="6"/>
+            <column name="content" value="Baal ma."/>
+            <column name="campaign_id" valueNumeric="1"/>
+        </insert>
+        <insert tableName="prompt">
+            <column name="id" valueNumeric="7"/>
+            <column name="content" value="Naka nga tudd ?"/>
+            <column name="campaign_id" valueNumeric="1"/>
+        </insert>
+        <insert tableName="prompt">
+            <column name="id" valueNumeric="8"/>
+            <column name="content" value="Ñaata la ?"/>
+            <column name="campaign_id" valueNumeric="1"/>
+        </insert>
+        <insert tableName="prompt">
+            <column name="id" valueNumeric="9"/>
+            <column name="content" value="Dama bëgg ndox."/>
+            <column name="campaign_id" valueNumeric="1"/>
+        </insert>
+        <insert tableName="prompt">
+            <column name="id" valueNumeric="10"/>
+            <column name="content" value="Dafa tang tey."/>
+            <column name="campaign_id" valueNumeric="1"/>
+        </insert>
+    </changeSet>
+</databaseChangeLog>

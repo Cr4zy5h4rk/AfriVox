@@ -17,6 +17,14 @@ public interface RecordingRepository extends JpaRepository<Recording, Long> {
     /** Enregistrements d'un contributeur (les siens). */
     Page<Recording> findAllByContributorId(Long contributorId, Pageable pageable);
 
+    /** Nombre de phrases d'une campagne deja enregistrees (envoyees ou validees) par ce contributeur. */
+    @Query(
+        "select count(distinct recording.prompt.id) from Recording recording where recording.contributor.id = :profileId " +
+            "and recording.prompt.campaign.id = :campaignId and recording.status in " +
+            "(com.afrivox.app.domain.enumeration.RecordingStatus.SUBMITTED, com.afrivox.app.domain.enumeration.RecordingStatus.VALIDATED)"
+    )
+    long countRecordedPrompts(@Param("profileId") Long profileId, @Param("campaignId") Long campaignId);
+
     /** Detection de doublon exact : meme contenu deja envoye par ce contributeur. */
     boolean existsByContributorIdAndSha256(Long contributorId, String sha256);
 

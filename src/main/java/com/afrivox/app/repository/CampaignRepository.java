@@ -14,6 +14,14 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface CampaignRepository extends JpaRepository<Campaign, Long> {
+    /** Campagnes ouvertes aux contributeurs : actives et ni privees (reservees a une organisation). */
+    @Query(
+        "select campaign from Campaign campaign left join fetch campaign.language " +
+            "where campaign.status = com.afrivox.app.domain.enumeration.CampaignStatus.ACTIVE " +
+            "and campaign.kind <> com.afrivox.app.domain.enumeration.CampaignKind.PRIVATE order by campaign.id"
+    )
+    List<Campaign> findAllOpenForContributors();
+
     default Optional<Campaign> findOneWithEagerRelationships(Long id) {
         return this.findOneWithToOneRelationships(id);
     }

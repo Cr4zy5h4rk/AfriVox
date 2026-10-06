@@ -38,7 +38,9 @@ spring:
       auto-commit: false
   liquibase:
     # Remove 'faker' if you do not want the sample data to be loaded automatically
-    contexts: dev, faker
+    # "faker" retiré : les données aléatoires de JHipster (langues absurdes, campagnes actives) polluent les tests.
+    # Le jeu de départ réel est dans 20261006200000_seed_dev_wolof.xml (contexte dev).
+    contexts: dev
   mail:
     host: localhost
     port: 25

@@ -5,6 +5,7 @@ import com.afrivox.app.domain.Campaign;
 import com.afrivox.app.domain.Prompt;
 import com.afrivox.app.domain.Recording;
 import com.afrivox.app.domain.UserProfile;
+import com.afrivox.app.domain.enumeration.CampaignKind;
 import com.afrivox.app.domain.enumeration.CampaignStatus;
 import com.afrivox.app.domain.enumeration.ConsentKind;
 import com.afrivox.app.domain.enumeration.QcStatus;
@@ -92,7 +93,7 @@ public class RecordingUploadService {
             .findById(promptId)
             .orElseThrow(() -> new BadRequestAlertException("Phrase introuvable", ENTITY_NAME, "promptnotfound"));
         Campaign campaign = prompt.getCampaign();
-        if (campaign == null || campaign.getStatus() != CampaignStatus.ACTIVE) {
+        if (campaign == null || campaign.getStatus() != CampaignStatus.ACTIVE || campaign.getKind() == CampaignKind.PRIVATE) {
             throw new BadRequestAlertException("La campagne n'est pas active", ENTITY_NAME, "campaigninactive");
         }
 

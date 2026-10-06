@@ -51,7 +51,7 @@ public class SecurityConfiguration {
                     // Mes consentements : le service ne lit et ne modifie que ceux de l'utilisateur connecté.
                     .requestMatchers("/api/consents/**").authenticated()
                     // Envoi d'audio : contributeurs (et admin). Chaque utilisateur ne voit que ses enregistrements.
-                    .requestMatchers("/api/me/recordings/**").hasAnyAuthority(AuthoritiesConstants.CONTRIBUTOR, AuthoritiesConstants.ADMIN)
+                    .requestMatchers("/api/me/recordings/**", "/api/me/campaigns/**").hasAnyAuthority(AuthoritiesConstants.CONTRIBUTOR, AuthoritiesConstants.ADMIN)
                     // CRUD généré par JHipster : référentiels lisibles par tout utilisateur connecté, écriture réservée à l'admin.
                     .requestMatchers(HttpMethod.GET, "/api/languages/**", "/api/campaigns/**", "/api/prompts/**", "/api/datasets/**", "/api/ml-models/**", "/api/evaluations/**").authenticated()
                     // Tout le reste du CRUD généré (données personnelles, audio, crédits, clés d'API, chemins de fichiers) :

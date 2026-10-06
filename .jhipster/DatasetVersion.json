@@ -1,0 +1,88 @@
+{
+  "annotations": {
+    "changelogDate": "20261006131544"
+  },
+  "applications": ["afriVox"],
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "label",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "20"
+    },
+    {
+      "fieldName": "hours",
+      "fieldType": "Float",
+      "fieldValidateRules": ["min"],
+      "fieldValidateRulesMin": "0"
+    },
+    {
+      "fieldName": "speakers",
+      "fieldType": "Integer",
+      "fieldValidateRules": ["min"],
+      "fieldValidateRulesMin": "0"
+    },
+    {
+      "fieldName": "qualityScore",
+      "fieldType": "Float",
+      "fieldValidateRules": ["min", "max"],
+      "fieldValidateRulesMax": "100",
+      "fieldValidateRulesMin": "0"
+    },
+    {
+      "fieldName": "pricePerHourFcfa",
+      "fieldType": "Integer",
+      "fieldValidateRules": ["min"],
+      "fieldValidateRulesMin": "0"
+    },
+    {
+      "fieldName": "license",
+      "fieldType": "LicenseKind",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "PROTOTYPE,RESEARCH,COMMERCIAL"
+    },
+    {
+      "fieldName": "status",
+      "fieldType": "VersionStatus",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "DRAFT,PUBLISHED,WITHDRAWN"
+    },
+    {
+      "fieldName": "packagePath",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "300"
+    },
+    {
+      "fieldName": "sha256",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "64"
+    },
+    {
+      "fieldName": "createdAt",
+      "fieldType": "Instant",
+      "fieldValidateRules": ["required"]
+    }
+  ],
+  "name": "DatasetVersion",
+  "relationships": [
+    {
+      "otherEntityField": "slug",
+      "otherEntityName": "dataset",
+      "relationshipName": "dataset",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    },
+    {
+      "otherEntityName": "recording",
+      "otherEntityRelationshipName": "datasetVersion",
+      "relationshipName": "recording",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-many"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

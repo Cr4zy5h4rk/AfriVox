@@ -1,0 +1,51 @@
+{
+  "annotations": {
+    "changelogDate": "20261006131542"
+  },
+  "applications": ["afriVox"],
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "slug",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "unique", "maxlength"],
+      "fieldValidateRulesMaxlength": "80"
+    },
+    {
+      "fieldName": "title",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "120"
+    },
+    {
+      "fieldName": "description",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "1000"
+    },
+    {
+      "fieldName": "domain",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "80"
+    },
+    {
+      "fieldName": "plan",
+      "fieldType": "DatasetPlan",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "STARTER,PLUS,PRO"
+    }
+  ],
+  "name": "Dataset",
+  "relationships": [
+    {
+      "otherEntityField": "code",
+      "otherEntityName": "language",
+      "relationshipName": "language",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

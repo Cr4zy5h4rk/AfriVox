@@ -1,0 +1,61 @@
+{
+  "annotations": {
+    "changelogDate": "20261006131552"
+  },
+  "applications": ["afriVox"],
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "verdict",
+      "fieldType": "Verdict",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "ACCEPT,REJECT"
+    },
+    {
+      "fieldName": "audioOk",
+      "fieldType": "Boolean"
+    },
+    {
+      "fieldName": "pronunciationOk",
+      "fieldType": "Boolean"
+    },
+    {
+      "fieldName": "transcriptOk",
+      "fieldType": "Boolean"
+    },
+    {
+      "fieldName": "gold",
+      "fieldType": "Boolean"
+    },
+    {
+      "fieldName": "note",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "300"
+    },
+    {
+      "fieldName": "createdAt",
+      "fieldType": "Instant",
+      "fieldValidateRules": ["required"]
+    }
+  ],
+  "name": "RecordingReview",
+  "pagination": "pagination",
+  "relationships": [
+    {
+      "otherEntityName": "recording",
+      "relationshipName": "recording",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    },
+    {
+      "otherEntityField": "displayName",
+      "otherEntityName": "userProfile",
+      "relationshipName": "reviewer",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

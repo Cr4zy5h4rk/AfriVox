@@ -1,0 +1,42 @@
+{
+  "annotations": {
+    "changelogDate": "20261006131540"
+  },
+  "applications": ["afriVox"],
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "kind",
+      "fieldType": "ConsentKind",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "COLLECTION,RESALE,FREE_DISTRIBUTION,VOICE_LICENSING"
+    },
+    {
+      "fieldName": "policyVersion",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "20"
+    },
+    {
+      "fieldName": "grantedAt",
+      "fieldType": "Instant",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "revokedAt",
+      "fieldType": "Instant"
+    }
+  ],
+  "name": "Consent",
+  "relationships": [
+    {
+      "otherEntityField": "displayName",
+      "otherEntityName": "userProfile",
+      "relationshipName": "profile",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

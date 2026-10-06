@@ -87,7 +87,7 @@ Le profil `prod` active `server.forward-headers-strategy: native`. nginx doit do
 
 ## Journal des modifications
 
-État au **5 octobre 2026**. Le dépôt ne contient qu'un commit (génération JHipster) ; les changements ci-dessous ne sont pas encore commités.
+État au **6 octobre 2026**. Les points 1 à 3 sont commités ; le point 4 (entités métier) ne l'est pas encore.
 
 ### 1. Nettoyage après la génération JHipster
 
@@ -123,6 +123,34 @@ Détaillée dans la section suivante. Code ajouté :
 - Inscription avec rôle et consentement (`ManagedUserVM`, `AccountResource`, `UserService`).
 - Mot de passe : 8 caractères minimum (avant : 4).
 - Jeton d'accès de 15 minutes (avant : 24 h), plus de jeton d'accès de 30 jours pour « se souvenir de moi ».
+
+### 4. Entités métier (6 octobre 2026)
+
+Générées depuis `afrivox.jdl` : 16 entités (`Language`, `UserProfile`, `LanguageQualification`, `Consent`, `Campaign`, `Prompt`, `Recording`, `RecordingReview`, `CreditTransaction`, `Dataset`, `DatasetVersion`, `DownloadLog`, `MlModel`, `Evaluation`, `ApiKey`, `DatasetRequest`) avec repository, service, DTO (MapStruct), resource REST, tests générés et changelogs Liquibase (+ données factices en contexte `faker`). `UserProfile` est lié à `User` (un pour un).
+
+**Incident à ne pas reproduire.** Le JDL contenait `packageName sn.afrivox`. JHipster a alors régénéré toute l'application dans un second paquet et écrasé nos corrections (`pom.xml`, `application*.yml`, `master.xml`, Docker, retour de Prometheus/Grafana). Retour arrière par git, puis JDL corrigé (`com.afrivox.app`, `baseName afriVox`). La commande à utiliser est :
+
+```bash
+jhipster jdl afrivox.jdl --ignore-application --skip-git
+```
+
+Après chaque génération : `git status` et `git diff` avant de continuer. La génération avait aussi écrasé `ConsentResource` et son test (`/api/consent/current`) ; restaurés depuis git.
+
+**Consentements.** `Consent` (consentement par type : collecte, revente, diffusion libre, licence de voix) est distinct de `UserConsent` (version acceptée à l'inscription). Pas de CRUD générique : `ConsentRecordResource` (`/api/consents`) ne permet que de lister **mes** consentements, d'en accorder un (la version de la politique vient du serveur) et de le retirer (`revokedAt` daté, rien n'est supprimé). Le retrait n'exclut pas encore les enregistrements des versions de dataset : à brancher à la construction des versions. `UserProfile` est créé au premier usage (`UserProfileService.getOrCreateCurrent`), pas à l'inscription.
+
+**Accès aux ressources générées** (`SecurityConfiguration`, refus par défaut) :
+
+| Ressources                                                                                                                                                                                                     | Lecture                                    | Écriture |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | -------- |
+| `languages`, `campaigns`, `prompts`, `datasets`, `ml-models`, `evaluations`                                                                                                                                    | utilisateur connecté                       | admin    |
+| `dataset-versions` (chemins de paquets), `recordings` (chemins audio), `recording-reviews`, `credit-transactions`, `api-keys`, `user-profiles`, `language-qualifications`, `dataset-requests`, `download-logs` | admin                                      | admin    |
+| `consents`                                                                                                                                                                                                     | utilisateur connecté (les siens seulement) | idem     |
+
+Les usages réels (« mes enregistrements », « mes clés d'API »…) passeront par des endpoints dédiés filtrés par propriétaire.
+
+Vérifié : `./mvnw -o compile` passe. Tests non lancés : les `*ResourceIT` générés utilisent un utilisateur simple et échoueront sur les ressources réservées à l'admin, à adapter.
+
+À vérifier avant la production : le contexte Liquibase `faker` ne doit pas être actif (`spring.liquibase.contexts`).
 
 ## Authentification
 
@@ -217,6 +245,6 @@ Dans l'ordre du planning (semaine 1, jusqu'au 11 octobre) :
 
 1. Lancer les tests (`./mvnw verify` avec Docker) et corriger ce qui casse, puis commiter.
 2. Frontend Angular (PWA, mobile d'abord, droite à gauche) : connexion, inscription.
-3. Entités métier : langue, campagne, phrase, enregistrement ; envoi audio avec validation du type et de la taille.
+3. ~~Entités métier~~ générées (voir journal 4). Reste : envoi audio avec validation du type et de la taille, stockage sur disque, endpoints « mes enregistrements », adaptation des tests générés.
 4. Premier déploiement sur Datacloud : Docker Compose (API, PostgreSQL, nginx), HTTPS Let's Encrypt.
 5. Fin du projet : inventaire des licences, schéma d'architecture, journal des décisions, déclaration de l'usage de l'IA, question licences à Systalink.

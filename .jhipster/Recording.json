@@ -1,0 +1,80 @@
+{
+  "annotations": {
+    "changelogDate": "20261006131551"
+  },
+  "applications": ["afriVox"],
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "audioPath",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "300"
+    },
+    {
+      "fieldName": "durationMs",
+      "fieldType": "Integer",
+      "fieldValidateRules": ["required", "min"],
+      "fieldValidateRulesMin": "0"
+    },
+    {
+      "fieldName": "sha256",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "64"
+    },
+    {
+      "fieldName": "qcStatus",
+      "fieldType": "QcStatus",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "PENDING,PASSED,FAILED"
+    },
+    {
+      "fieldName": "qcScore",
+      "fieldType": "Float"
+    },
+    {
+      "fieldName": "transcript",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "1000"
+    },
+    {
+      "fieldName": "status",
+      "fieldType": "RecordingStatus",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "SUBMITTED,VALIDATED,REJECTED,WITHDRAWN"
+    },
+    {
+      "fieldName": "createdAt",
+      "fieldType": "Instant",
+      "fieldValidateRules": ["required"]
+    }
+  ],
+  "name": "Recording",
+  "pagination": "pagination",
+  "relationships": [
+    {
+      "otherEntityName": "prompt",
+      "relationshipName": "prompt",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    },
+    {
+      "otherEntityField": "displayName",
+      "otherEntityName": "userProfile",
+      "relationshipName": "contributor",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    },
+    {
+      "otherEntityName": "datasetVersion",
+      "otherEntityRelationshipName": "recording",
+      "relationshipName": "datasetVersion",
+      "relationshipSide": "right",
+      "relationshipType": "many-to-many"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

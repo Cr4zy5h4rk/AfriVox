@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd
+                        http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+    <!--
+        Added the constraints for entity DatasetVersion.
+    -->
+    <changeSet id="20261006131544-2" author="jhipster">
+
+        <addForeignKeyConstraint baseColumnNames="dataset_id"
+                                 baseTableName="dataset_version"
+                                 constraintName="fk_dataset_version__dataset_id"
+                                 referencedColumnNames="id"
+                                 referencedTableName="dataset"
+                                 />
+
+        <addForeignKeyConstraint baseColumnNames="dataset_version_id"
+                                 baseTableName="rel_dataset_version__recording"
+                                 constraintName="fk_rel_dataset_version__recording__dataset_version_id"
+                                 referencedColumnNames="id"
+                                 referencedTableName="dataset_version"
+                                 />
+
+        <addForeignKeyConstraint baseColumnNames="recording_id"
+                                 baseTableName="rel_dataset_version__recording"
+                                 constraintName="fk_rel_dataset_version__recording__recording_id"
+                                 referencedColumnNames="id"
+                                 referencedTableName="recording"
+                                 />
+    </changeSet>
+</databaseChangeLog>

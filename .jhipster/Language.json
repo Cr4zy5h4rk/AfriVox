@@ -1,0 +1,55 @@
+{
+  "annotations": {
+    "changelogDate": "20261006131547"
+  },
+  "applications": ["afriVox"],
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "code",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "unique", "maxlength"],
+      "fieldValidateRulesMaxlength": "10"
+    },
+    {
+      "fieldName": "name",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "80"
+    },
+    {
+      "fieldName": "dialect",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "80"
+    },
+    {
+      "fieldName": "script",
+      "fieldType": "ScriptKind",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "LATIN,ARABIC,NKO,OTHER"
+    },
+    {
+      "fieldName": "direction",
+      "fieldType": "TextDirection",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "LTR,RTL"
+    },
+    {
+      "fieldName": "status",
+      "fieldType": "LanguageStatus",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "WAITLIST,ACTIVE"
+    },
+    {
+      "fieldName": "minValidators",
+      "fieldType": "Integer",
+      "fieldValidateRules": ["required", "min"],
+      "fieldValidateRulesMin": "1"
+    }
+  ],
+  "name": "Language",
+  "relationships": [],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

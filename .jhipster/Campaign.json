@@ -1,0 +1,68 @@
+{
+  "annotations": {
+    "changelogDate": "20261006131539"
+  },
+  "applications": ["afriVox"],
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "title",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "120"
+    },
+    {
+      "fieldName": "description",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "1000"
+    },
+    {
+      "fieldName": "domain",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "80"
+    },
+    {
+      "fieldName": "kind",
+      "fieldType": "CampaignKind",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "OPEN,SPONSORED,PRIVATE"
+    },
+    {
+      "fieldName": "status",
+      "fieldType": "CampaignStatus",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "DRAFT,ACTIVE,CLOSED"
+    },
+    {
+      "fieldName": "targetSentences",
+      "fieldType": "Integer",
+      "fieldValidateRules": ["min"],
+      "fieldValidateRulesMin": "1"
+    },
+    {
+      "fieldName": "createdAt",
+      "fieldType": "Instant",
+      "fieldValidateRules": ["required"]
+    }
+  ],
+  "name": "Campaign",
+  "relationships": [
+    {
+      "otherEntityField": "code",
+      "otherEntityName": "language",
+      "relationshipName": "language",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    },
+    {
+      "otherEntityName": "datasetRequest",
+      "relationshipName": "request",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

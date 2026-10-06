@@ -1,0 +1,31 @@
+id;verdict;audio_ok;pronunciation_ok;transcript_ok;gold;note;created_at
+1;ACCEPT;false;true;true;true;but discontinue;2026-10-06T05:45:43
+2;REJECT;true;true;true;false;bleak;2026-10-06T03:22:31
+3;ACCEPT;true;true;false;false;oh lazy certify;2026-10-05T15:18:54
+4;ACCEPT;true;true;true;false;intermix yet monocle;2026-10-06T09:03:15
+5;REJECT;true;false;true;false;gee;2026-10-05T23:12:02
+6;REJECT;true;true;true;false;rigidly;2026-10-06T09:24:37
+7;REJECT;true;false;true;true;successfully upsell furthermore;2026-10-06T00:11:52
+8;REJECT;false;false;true;false;government;2026-10-06T02:49:02
+9;ACCEPT;true;false;true;false;plus spice merge;2026-10-06T10:46:38
+10;ACCEPT;false;true;true;true;dimly who critical;2026-10-06T06:33:04
+11;REJECT;true;true;false;true;drive;2026-10-05T16:29:59
+12;REJECT;false;true;true;false;gratefully;2026-10-06T04:23:36
+13;REJECT;false;false;false;true;these;2026-10-05T16:26:03
+14;REJECT;true;true;false;false;zowie gadzooks commandeer;2026-10-05T22:46:24
+15;REJECT;false;false;false;false;excitedly;2026-10-06T06:04:57
+16;REJECT;true;true;false;false;why;2026-10-05T19:51:24
+17;ACCEPT;false;false;false;true;gosh;2026-10-06T09:44:22
+18;ACCEPT;false;false;false;false;by;2026-10-05T22:31:55
+19;REJECT;false;true;false;true;lightly make;2026-10-06T06:04:31
+20;REJECT;true;false;true;false;nephew;2026-10-06T00:46:26
+21;ACCEPT;false;true;true;false;helpfully;2026-10-05T20:37:19
+22;REJECT;true;false;false;true;smoke approach;2026-10-06T10:57:26
+23;REJECT;true;true;true;true;ah;2026-10-06T12:20:27
+24;ACCEPT;false;false;false;false;what allegation;2026-10-05T15:11:07
+25;ACCEPT;false;false;true;true;nicely;2026-10-06T02:32:56
+26;REJECT;true;true;true;false;qua;2026-10-05T18:48:53
+27;ACCEPT;false;false;false;true;before;2026-10-06T06:30:37
+28;REJECT;false;false;true;true;geez import;2026-10-06T01:02:31
+29;REJECT;true;true;false;true;fireplace huzzah easily;2026-10-05T19:33:17
+30;ACCEPT;true;false;true;false;ample furthermore;2026-10-05T15:44:40

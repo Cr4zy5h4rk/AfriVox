@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd
+                        http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+    <!--
+        Added the constraints for entity CreditTransaction.
+    -->
+    <changeSet id="20261006131541-2" author="jhipster">
+
+        <addForeignKeyConstraint baseColumnNames="profile_id"
+                                 baseTableName="credit_transaction"
+                                 constraintName="fk_credit_transaction__profile_id"
+                                 referencedColumnNames="id"
+                                 referencedTableName="user_profile"
+                                 />
+
+        <addForeignKeyConstraint baseColumnNames="dataset_version_id"
+                                 baseTableName="credit_transaction"
+                                 constraintName="fk_credit_transaction__dataset_version_id"
+                                 referencedColumnNames="id"
+                                 referencedTableName="dataset_version"
+                                 />
+    </changeSet>
+</databaseChangeLog>

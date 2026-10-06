@@ -1,0 +1,40 @@
+{
+  "annotations": {
+    "changelogDate": "20261006131545"
+  },
+  "applications": ["afriVox"],
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "downloadedAt",
+      "fieldType": "Instant",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "ip",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "45"
+    }
+  ],
+  "name": "DownloadLog",
+  "pagination": "pagination",
+  "relationships": [
+    {
+      "otherEntityField": "label",
+      "otherEntityName": "datasetVersion",
+      "relationshipName": "datasetVersion",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    },
+    {
+      "otherEntityField": "displayName",
+      "otherEntityName": "userProfile",
+      "relationshipName": "profile",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

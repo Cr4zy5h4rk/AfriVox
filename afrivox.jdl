@@ -1,11 +1,11 @@
-// JDL de départ. Non validé par le générateur : lancer `jhipster jdl afrivox.jdl --skip-git`
-// et corriger les erreurs éventuelles. Renommer baseName et packageName selon le nom choisi.
+// JDL des entités. À lancer avec --ignore-application pour ne PAS régénérer l'application
+// (nos corrections de sécurité seraient écrasées) : jhipster jdl afrivox.jdl --ignore-application --skip-git
 
 application {
   config {
-    baseName afrivox
+    baseName afriVox
     applicationType monolith
-    packageName sn.afrivox
+    packageName com.afrivox.app
     authenticationType jwt
     buildTool maven
     prodDatabaseType postgresql

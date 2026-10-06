@@ -1,0 +1,91 @@
+{
+  "annotations": {
+    "changelogDate": "20261006131543"
+  },
+  "applications": ["afriVox"],
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "orgName",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "120"
+    },
+    {
+      "fieldName": "sector",
+      "fieldType": "Sector",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "BANK,TELECOM,HEALTH,PUBLIC,EDUCATION,STARTUP,RESEARCH,OTHER"
+    },
+    {
+      "fieldName": "hours",
+      "fieldType": "Integer",
+      "fieldValidateRules": ["required", "min"],
+      "fieldValidateRulesMin": "1"
+    },
+    {
+      "fieldName": "speakersTarget",
+      "fieldType": "Integer",
+      "fieldValidateRules": ["min"],
+      "fieldValidateRulesMin": "1"
+    },
+    {
+      "fieldName": "conversationType",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "120"
+    },
+    {
+      "fieldName": "usageKind",
+      "fieldType": "UsageKind",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "COMMERCIAL,RESEARCH"
+    },
+    {
+      "fieldName": "deadline",
+      "fieldType": "LocalDate"
+    },
+    {
+      "fieldName": "description",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "1500"
+    },
+    {
+      "fieldName": "status",
+      "fieldType": "RequestStatus",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "RECEIVED,IN_REVIEW,QUOTED,ACCEPTED,COLLECTING,DELIVERED,REJECTED"
+    },
+    {
+      "fieldName": "quoteAmountFcfa",
+      "fieldType": "Integer",
+      "fieldValidateRules": ["min"],
+      "fieldValidateRulesMin": "0"
+    },
+    {
+      "fieldName": "createdAt",
+      "fieldType": "Instant",
+      "fieldValidateRules": ["required"]
+    }
+  ],
+  "name": "DatasetRequest",
+  "relationships": [
+    {
+      "otherEntityField": "code",
+      "otherEntityName": "language",
+      "relationshipName": "language",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    },
+    {
+      "otherEntityField": "displayName",
+      "otherEntityName": "userProfile",
+      "relationshipName": "requester",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

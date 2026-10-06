@@ -1,0 +1,45 @@
+{
+  "annotations": {
+    "changelogDate": "20261006131548"
+  },
+  "applications": ["afriVox"],
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "score",
+      "fieldType": "Float",
+      "fieldValidateRules": ["min", "max"],
+      "fieldValidateRulesMax": "100",
+      "fieldValidateRulesMin": "0"
+    },
+    {
+      "fieldName": "status",
+      "fieldType": "QualificationStatus",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "PENDING,QUALIFIED,REVOKED"
+    },
+    {
+      "fieldName": "qualifiedAt",
+      "fieldType": "Instant"
+    }
+  ],
+  "name": "LanguageQualification",
+  "relationships": [
+    {
+      "otherEntityField": "displayName",
+      "otherEntityName": "userProfile",
+      "relationshipName": "profile",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    },
+    {
+      "otherEntityField": "code",
+      "otherEntityName": "language",
+      "relationshipName": "language",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

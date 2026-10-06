@@ -1,0 +1,45 @@
+{
+  "annotations": {
+    "changelogDate": "20261006131541"
+  },
+  "applications": ["afriVox"],
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "amount",
+      "fieldType": "Integer",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "reason",
+      "fieldType": "CreditReason",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "RECORDING_VALIDATED,REVIEW_DONE,ROYALTY,PURCHASE,ADJUSTMENT"
+    },
+    {
+      "fieldName": "createdAt",
+      "fieldType": "Instant",
+      "fieldValidateRules": ["required"]
+    }
+  ],
+  "name": "CreditTransaction",
+  "pagination": "pagination",
+  "relationships": [
+    {
+      "otherEntityField": "displayName",
+      "otherEntityName": "userProfile",
+      "relationshipName": "profile",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    },
+    {
+      "otherEntityField": "label",
+      "otherEntityName": "datasetVersion",
+      "relationshipName": "datasetVersion",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

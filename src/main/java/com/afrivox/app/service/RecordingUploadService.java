@@ -123,7 +123,7 @@ public class RecordingUploadService {
     }
 
     /** Enregistrements de l'utilisateur connecte, pagines. */
-    @Transactional(readOnly = true)
+    // Pas readOnly : getOrCreateCurrent() peut creer le profil (INSERT), interdit dans une transaction en lecture seule.
     public Page<Recording> findMine(Pageable pageable) {
         UserProfile profile = userProfileService.getOrCreateCurrent();
         return recordingRepository.findAllByContributorId(profile.getId(), pageable);

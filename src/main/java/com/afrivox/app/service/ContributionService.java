@@ -22,7 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
  * Les compteurs sont calcules a la demande depuis la base (aucun chiffre stocke ni invente).
  */
 @Service
-@Transactional(readOnly = true)
+// Pas readOnly : chaque methode passe par getOrCreateCurrent(), qui peut creer le profil (INSERT).
+@Transactional
 public class ContributionService {
 
     /** Nombre maximal de phrases renvoyees d'un coup. */

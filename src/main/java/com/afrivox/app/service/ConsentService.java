@@ -139,7 +139,7 @@ public class ConsentService {
     }
 
     /** Consentements de l'utilisateur connecte. */
-    @Transactional(readOnly = true)
+    // Pas readOnly : getOrCreateCurrent() peut creer le profil (INSERT), interdit dans une transaction en lecture seule.
     public List<ConsentDTO> findMine() {
         UserProfile profile = userProfileService.getOrCreateCurrent();
         return consentRepository.findAllByProfileIdOrderByGrantedAtDesc(profile.getId()).stream().map(consentMapper::toDto).toList();

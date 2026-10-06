@@ -152,6 +152,16 @@ Vérifié : `./mvnw -o compile` passe. Tests non lancés : les `*ResourceIT` gé
 
 À vérifier avant la production : le contexte Liquibase `faker` ne doit pas être actif (`spring.liquibase.contexts`).
 
+### 5. Envoi des enregistrements (6 octobre 2026)
+
+`POST /api/me/recordings` (multipart : `promptId`, `durationMs`, `file`) et `GET /api/me/recordings` (les siens, paginé). Réservés à `ROLE_CONTRIBUTOR` et `ROLE_ADMIN`. Le CRUD généré `/api/recordings` reste réservé à l'admin.
+
+Contrôles, dans l'ordre : taille (1 octet à 5 Mo), durée annoncée (0,5 à 30 s), **format détecté par les premiers octets** (webm, ogg, wav, m4a ; le type MIME et le nom du client sont ignorés), phrase existante dans une campagne `ACTIVE`, **consentement `COLLECTION` encore actif** (403 sinon : un retrait bloque les nouveaux envois), doublon exact par SHA-256 pour ce contributeur (409).
+
+Stockage : `application.audio.storage-dir` (défaut `data/audio`, ignoré par git), sous `année/mois/<uuid>.<ext>` ; nom généré par le serveur, écriture temporaire puis renommage atomique. Le chemin n'est jamais renvoyé à l'API (`RecordingSummary`). L'enregistrement est créé `SUBMITTED` / `qcStatus = PENDING`.
+
+Limites connues : la durée est celle annoncée par le client (le contrôle qualité devra la recalculer) ; le fichier est lu en mémoire (5 Mo max) ; aucune limitation du nombre d'envois par minute ; les contrôles qualité (silence, bruit, doublons proches) ne sont pas faits. Test unitaire `AudioFormatTest` écrit, non lancé.
+
 ## Authentification
 
 ### Principe

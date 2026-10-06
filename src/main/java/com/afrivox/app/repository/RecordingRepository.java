@@ -14,6 +14,12 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface RecordingRepository extends JpaRepository<Recording, Long> {
+    /** Enregistrements d'un contributeur (les siens). */
+    Page<Recording> findAllByContributorId(Long contributorId, Pageable pageable);
+
+    /** Detection de doublon exact : meme contenu deja envoye par ce contributeur. */
+    boolean existsByContributorIdAndSha256(Long contributorId, String sha256);
+
     default Optional<Recording> findOneWithEagerRelationships(Long id) {
         return this.findOneWithToOneRelationships(id);
     }

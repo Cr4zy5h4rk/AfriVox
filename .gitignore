@@ -151,3 +151,6 @@ Desktop.ini
 ######################
 coverage/
 .nyc_output/
+
+# Fichiers audio des contributeurs (donnees personnelles, jamais dans git)
+/data/

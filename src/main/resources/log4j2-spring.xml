@@ -22,7 +22,8 @@
         <Logger name="angus.activation" level="WARN"/>
         <Logger name="jakarta.activation" level="WARN"/>
         <Logger name="jakarta.mail" level="WARN"/>
-        <Logger name="jakarta.management.remote" level="WARN"/>
+        <Logger name="javax.management" level="WARN"/>
+        <Logger name="sun.rmi" level="WARN"/>
         <Logger name="jakarta.xml.bind" level="WARN"/>
         <Logger name="com.sun" level="WARN"/>
         <Logger name="com.zaxxer" level="WARN"/>

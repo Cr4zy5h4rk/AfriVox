@@ -49,6 +49,11 @@ management:
       enabled: false # When using the MailService, configure an SMTP server and set this to true
 
 spring:
+  servlet:
+    multipart:
+      # Un peu au-dessus de application.audio.max-bytes ; le service refuse ensuite avec un message clair.
+      max-file-size: 6MB
+      max-request-size: 7MB
   application:
     name: afriVox
   docker:
@@ -178,3 +183,6 @@ jhipster:
 application:
   # Pas de SMTP au MVP : les comptes sont actives a l inscription. Mettre false une fois le SMTP configure.
   auto-activate-accounts: true
+  audio:
+    # Surchargeable par APPLICATION_AUDIO_STORAGE_DIR ; en production, un volume Docker sauvegarde.
+    storage-dir: data/audio

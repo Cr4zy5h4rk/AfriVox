@@ -17,6 +17,8 @@ public class ApplicationProperties {
 
     private final Consent consent = new Consent();
 
+    private final Audio audio = new Audio();
+
     /** Active les comptes a l inscription (sans e-mail d activation). Faux par defaut. */
     private boolean autoActivateAccounts = false;
 
@@ -40,6 +42,10 @@ public class ApplicationProperties {
 
     public Consent getConsent() {
         return consent;
+    }
+
+    public Audio getAudio() {
+        return audio;
     }
 
     // jhipster-needle-application-properties-property-getter
@@ -138,6 +144,52 @@ public class ApplicationProperties {
 
         public void setCurrentVersion(String currentVersion) {
             this.currentVersion = currentVersion;
+        }
+    }
+
+    /** Envoi des enregistrements : dossier de stockage sur disque et limites acceptees. */
+    public static class Audio {
+
+        /** Dossier racine des fichiers audio (volume Docker sauvegarde en production). */
+        private String storageDir = "data/audio";
+
+        /** Taille maximale d'un fichier, en octets (une phrase courte tient largement dans 5 Mo). */
+        private long maxBytes = 5_000_000;
+
+        private int minDurationMs = 500;
+
+        private int maxDurationMs = 30_000;
+
+        public String getStorageDir() {
+            return storageDir;
+        }
+
+        public void setStorageDir(String storageDir) {
+            this.storageDir = storageDir;
+        }
+
+        public long getMaxBytes() {
+            return maxBytes;
+        }
+
+        public void setMaxBytes(long maxBytes) {
+            this.maxBytes = maxBytes;
+        }
+
+        public int getMinDurationMs() {
+            return minDurationMs;
+        }
+
+        public void setMinDurationMs(int minDurationMs) {
+            this.minDurationMs = minDurationMs;
+        }
+
+        public int getMaxDurationMs() {
+            return maxDurationMs;
+        }
+
+        public void setMaxDurationMs(int maxDurationMs) {
+            this.maxDurationMs = maxDurationMs;
         }
     }
 

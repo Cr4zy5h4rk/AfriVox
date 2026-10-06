@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Fiche de dataset de départ pour le développement (contexte "dev" uniquement) : le dataset existe mais n'a
+        aucune version publiée. Le catalogue l'affiche donc « en collecte », avec des compteurs calculés depuis les
+        enregistrements validés (0 tant que personne n'a validé). Aucun chiffre inventé : heures, locuteurs et qualité
+        ne sont renseignés que par une vraie version publiée.
+    -->
+    <changeSet id="20261006210000-1-seed-dataset" author="afrivox" context="dev">
+        <insert tableName="dataset">
+            <column name="id" valueNumeric="1"/>
+            <column name="slug" value="wolof-quotidien"/>
+            <column name="title" value="Wolof : phrases du quotidien"/>
+            <column name="description" value="Phrases courtes lues par des locuteurs wolof (salutations, marché, vie de tous les jours), validées par des pairs. Le jeu de données grandit au fil des contributions."/>
+            <column name="domain" value="quotidien"/>
+            <column name="plan" value="STARTER"/>
+            <column name="language_id" valueNumeric="1"/>
+        </insert>
+    </changeSet>
+</databaseChangeLog>

@@ -14,6 +14,21 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
+    /** Evaluations d'un modele, meilleur taux d'erreur (WER) d'abord. */
+    @Query("select e from Evaluation e where e.model.id = :modelId order by e.wer asc nulls last")
+    List<Evaluation> findForModel(@Param("modelId") Long modelId);
+
+    /** Meilleur WER d'un modele (vide s'il n'a aucune evaluation). */
+    @Query("select min(e.wer) from Evaluation e where e.model.id = :modelId")
+    Float bestWer(@Param("modelId") Long modelId);
+
+    /** Classement : evaluations avec un WER, meilleures d'abord, filtrables par langue ('' = toutes). */
+    @Query(
+        "select e from Evaluation e join fetch e.model m left join fetch m.language l " +
+            "where e.wer is not null and (:lang = '' or l.code = :lang) order by e.wer asc, e.submittedAt asc"
+    )
+    List<Evaluation> leaderboard(@Param("lang") String languageCode, Pageable pageable);
+
     default Optional<Evaluation> findOneWithEagerRelationships(Long id) {
         return this.findOneWithToOneRelationships(id);
     }

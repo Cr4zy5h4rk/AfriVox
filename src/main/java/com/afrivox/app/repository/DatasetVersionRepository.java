@@ -17,6 +17,19 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface DatasetVersionRepository extends DatasetVersionRepositoryWithBagRelationships, JpaRepository<DatasetVersion, Long> {
+    /** Versions d'un dataset dans un etat donne (le catalogue public ne voit que PUBLISHED), plus recentes d'abord. */
+    List<DatasetVersion> findAllByDatasetIdAndStatusOrderByCreatedAtDesc(
+        Long datasetId,
+        com.afrivox.app.domain.enumeration.VersionStatus status
+    );
+
+    /** Nombre de datasets ayant au moins une version publiee. */
+    @Query(
+        "select count(distinct v.dataset.id) from DatasetVersion v " +
+            "where v.status = com.afrivox.app.domain.enumeration.VersionStatus.PUBLISHED"
+    )
+    long countDatasetsWithPublishedVersion();
+
     default Optional<DatasetVersion> findOneWithEagerRelationships(Long id) {
         return this.fetchBagRelationships(this.findOneWithToOneRelationships(id));
     }

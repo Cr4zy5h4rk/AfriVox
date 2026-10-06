@@ -174,6 +174,18 @@ Limites connues : la durée est celle annoncée par le client (le contrôle qual
 
 Non fait : les phrases ne sont pas mélangées ni réparties entre contributeurs, et aucune limite de débit n'existe sur ces endpoints.
 
+### 7. Catalogue public et Model Hub (6 octobre 2026)
+
+**API publique en lecture seule, sans connexion** (`PublicCatalogResource`, `GET /api/public/**` en `permitAll`) : `stats`, `languages`, `datasets` (recherche `q`, `language`, `plan`, `domain`, pagination), `datasets/{slug}`, `models` (`q`, `task`, `language`), `models/{id}`, `leaderboard` (`language`, `limit`). Les réponses sont des `record` écrits à la main (`PublicCatalogService`), jamais les entités : aucun chemin de fichier (`packagePath`, `audioPath`) ni identifiant interne inutile n'est exposé. Les saisies de recherche sont échappées (`%`, `_`).
+
+**Aucun chiffre stocké ni inventé** : statistiques, heures validées et compteurs par langue sont calculés à chaque appel (0 sans données). Un dataset sans version `PUBLISHED` est affiché « en collecte » avec ses compteurs réels. Le WER et le CER sont lus comme des pourcentages (0 à 100).
+
+**Publication de modèles** (`MyModelResource`, `ModelPublishingService`) : `POST/GET/DELETE /api/me/models`, rôles développeur et admin. Chacun ne supprime que les siens (404 sinon). Le lien du modèle doit être en **https** (pas de `javascript:` ni `data:`), la langue doit exister, la version de dataset d'entraînement doit être publiée. Le nom d'auteur affiché publiquement est le `displayName` du profil, qui vaut le login par défaut (pas encore modifiable).
+
+Données de développement : `20261006210000_seed_dev_dataset.xml` ajoute la fiche « Wolof : phrases du quotidien », sans version publiée.
+
+Non fait : téléchargement des datasets (liens signés), limitation de débit des endpoints publics, évaluation automatique (calcul du WER), modification du profil. Compilé, **jamais démarré** : les requêtes HQL (`EvaluationRepository.leaderboard`, `nulls last`) ne sont validées qu'au démarrage.
+
 ## Authentification
 
 ### Principe

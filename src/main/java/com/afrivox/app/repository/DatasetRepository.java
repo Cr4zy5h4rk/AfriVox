@@ -13,7 +13,9 @@ import org.springframework.stereotype.Repository;
  * Spring Data JPA repository for the Dataset entity.
  */
 @Repository
-public interface DatasetRepository extends JpaRepository<Dataset, Long> {
+public interface DatasetRepository extends JpaRepository<Dataset, Long>, JpaSpecificationExecutor<Dataset> {
+    Optional<Dataset> findOneBySlug(String slug);
+
     default Optional<Dataset> findOneWithEagerRelationships(Long id) {
         return this.findOneWithToOneRelationships(id);
     }

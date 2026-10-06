@@ -14,6 +14,35 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface RecordingRepository extends JpaRepository<Recording, Long> {
+    long countByStatus(com.afrivox.app.domain.enumeration.RecordingStatus status);
+
+    /** Duree totale des enregistrements valides, en millisecondes. */
+    @Query(
+        "select coalesce(sum(r.durationMs), 0) from Recording r " +
+            "where r.status = com.afrivox.app.domain.enumeration.RecordingStatus.VALIDATED"
+    )
+    long validatedDurationMs();
+
+    /** Contributeurs distincts ayant envoye au moins un enregistrement actif (envoye ou valide). */
+    @Query(
+        "select count(distinct r.contributor.id) from Recording r where r.status in " +
+            "(com.afrivox.app.domain.enumeration.RecordingStatus.SUBMITTED, com.afrivox.app.domain.enumeration.RecordingStatus.VALIDATED)"
+    )
+    long countActiveContributors();
+
+    /** Enregistrements valides d'une langue (via les campagnes de cette langue). */
+    @Query(
+        "select count(r) from Recording r where r.status = com.afrivox.app.domain.enumeration.RecordingStatus.VALIDATED " +
+            "and r.prompt.campaign.language.id = :languageId"
+    )
+    long countValidatedByLanguage(@Param("languageId") Long languageId);
+
+    @Query(
+        "select coalesce(sum(r.durationMs), 0) from Recording r where r.status = com.afrivox.app.domain.enumeration.RecordingStatus.VALIDATED " +
+            "and r.prompt.campaign.language.id = :languageId"
+    )
+    long validatedDurationMsByLanguage(@Param("languageId") Long languageId);
+
     /** Enregistrements d'un contributeur (les siens). */
     Page<Recording> findAllByContributorId(Long contributorId, Pageable pageable);
 

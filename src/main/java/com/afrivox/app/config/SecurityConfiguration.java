@@ -41,6 +41,8 @@ public class SecurityConfiguration {
                     .requestMatchers(HttpMethod.POST, "/api/authenticate").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/authenticate").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/consent/current").permitAll()
+                    // Catalogue public en lecture seule (stats, langues, datasets, modèles, classement) : sans connexion.
+                    .requestMatchers(HttpMethod.GET, "/api/public/**").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/authenticate/refresh").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/authenticate/logout").permitAll()
                     .requestMatchers("/api/register").permitAll()
@@ -52,6 +54,8 @@ public class SecurityConfiguration {
                     .requestMatchers("/api/consents/**").authenticated()
                     // Envoi d'audio : contributeurs (et admin). Chaque utilisateur ne voit que ses enregistrements.
                     .requestMatchers("/api/me/recordings/**", "/api/me/campaigns/**").hasAnyAuthority(AuthoritiesConstants.CONTRIBUTOR, AuthoritiesConstants.ADMIN)
+                    // Publication de modèles : développeurs (et admin). Chacun ne gère que les siens.
+                    .requestMatchers("/api/me/models/**").hasAnyAuthority(AuthoritiesConstants.DEVELOPER, AuthoritiesConstants.ADMIN)
                     // CRUD généré par JHipster : référentiels lisibles par tout utilisateur connecté, écriture réservée à l'admin.
                     .requestMatchers(HttpMethod.GET, "/api/languages/**", "/api/campaigns/**", "/api/prompts/**", "/api/datasets/**", "/api/ml-models/**", "/api/evaluations/**").authenticated()
                     // Tout le reste du CRUD généré (données personnelles, audio, crédits, clés d'API, chemins de fichiers) :

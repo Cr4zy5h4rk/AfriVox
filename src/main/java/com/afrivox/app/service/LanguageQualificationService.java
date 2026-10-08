@@ -26,12 +26,16 @@ public class LanguageQualificationService {
 
     private final LanguageQualificationMapper languageQualificationMapper;
 
+    private final LanguageActivationService languageActivationService;
+
     public LanguageQualificationService(
         LanguageQualificationRepository languageQualificationRepository,
-        LanguageQualificationMapper languageQualificationMapper
+        LanguageQualificationMapper languageQualificationMapper,
+        LanguageActivationService languageActivationService
     ) {
         this.languageQualificationRepository = languageQualificationRepository;
         this.languageQualificationMapper = languageQualificationMapper;
+        this.languageActivationService = languageActivationService;
     }
 
     /**
@@ -44,6 +48,7 @@ public class LanguageQualificationService {
         LOG.debug("Request to save LanguageQualification : {}", languageQualificationDTO);
         LanguageQualification languageQualification = languageQualificationMapper.toEntity(languageQualificationDTO);
         languageQualification = languageQualificationRepository.save(languageQualification);
+        promote(languageQualification);
         return languageQualificationMapper.toDto(languageQualification);
     }
 
@@ -57,6 +62,7 @@ public class LanguageQualificationService {
         LOG.debug("Request to update LanguageQualification : {}", languageQualificationDTO);
         LanguageQualification languageQualification = languageQualificationMapper.toEntity(languageQualificationDTO);
         languageQualification = languageQualificationRepository.save(languageQualification);
+        promote(languageQualification);
         return languageQualificationMapper.toDto(languageQualification);
     }
 
@@ -77,7 +83,16 @@ public class LanguageQualificationService {
                 return existingLanguageQualification;
             })
             .map(languageQualificationRepository::save)
+            .map(this::promote)
             .map(languageQualificationMapper::toDto);
+    }
+
+    /** Une qualification de plus peut faire atteindre le seuil de sa langue : on tente l'activation. */
+    private LanguageQualification promote(LanguageQualification qualification) {
+        if (qualification.getLanguage() != null) {
+            languageActivationService.promoteIfReady(qualification.getLanguage().getId());
+        }
+        return qualification;
     }
 
     /**

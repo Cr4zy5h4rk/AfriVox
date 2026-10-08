@@ -26,9 +26,16 @@ public class LanguageService {
 
     private final LanguageMapper languageMapper;
 
-    public LanguageService(LanguageRepository languageRepository, LanguageMapper languageMapper) {
+    private final LanguageActivationService languageActivationService;
+
+    public LanguageService(
+        LanguageRepository languageRepository,
+        LanguageMapper languageMapper,
+        LanguageActivationService languageActivationService
+    ) {
         this.languageRepository = languageRepository;
         this.languageMapper = languageMapper;
+        this.languageActivationService = languageActivationService;
     }
 
     /**
@@ -74,6 +81,13 @@ public class LanguageService {
                 return existingLanguage;
             })
             .map(languageRepository::save)
+            .map(saved -> {
+                // Si l'admin fixe le statut lui-meme (ex. remise en attente), on ne le contredit pas.
+                if (languageDTO.getStatus() == null) {
+                    languageActivationService.promoteIfReady(saved.getId());
+                }
+                return saved;
+            })
             .map(languageMapper::toDto);
     }
 

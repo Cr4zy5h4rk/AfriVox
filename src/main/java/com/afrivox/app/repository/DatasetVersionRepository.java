@@ -23,6 +23,14 @@ public interface DatasetVersionRepository extends DatasetVersionRepositoryWithBa
         com.afrivox.app.domain.enumeration.VersionStatus status
     );
 
+    Optional<com.afrivox.app.domain.DatasetVersion> findOneByDatasetIdAndLabelAndStatus(
+        Long datasetId,
+        String label,
+        com.afrivox.app.domain.enumeration.VersionStatus status
+    );
+
+    boolean existsByDatasetIdAndLabel(Long datasetId, String label);
+
     /** Nombre de datasets ayant au moins une version publiee. */
     @Query(
         "select count(distinct v.dataset.id) from DatasetVersion v " +

@@ -56,6 +56,8 @@ public class SecurityConfiguration {
                     .requestMatchers("/api/me/recordings/**", "/api/me/campaigns/**").hasAnyAuthority(AuthoritiesConstants.CONTRIBUTOR, AuthoritiesConstants.ADMIN)
                     // Publication de modèles : développeurs (et admin). Chacun ne gère que les siens.
                     .requestMatchers("/api/me/models/**").hasAnyAuthority(AuthoritiesConstants.DEVELOPER, AuthoritiesConstants.ADMIN)
+                    // Telechargement de datasets : developpeurs et organisations (et admin) demandent un lien signe.
+                    .requestMatchers("/api/me/downloads/**").hasAnyAuthority(AuthoritiesConstants.DEVELOPER, AuthoritiesConstants.ORGANIZATION, AuthoritiesConstants.ADMIN)
                     // Demandes de dataset sur mesure : organisations (et admin). Chacune ne voit que les siennes.
                     .requestMatchers("/api/me/requests/**").hasAnyAuthority(AuthoritiesConstants.ORGANIZATION, AuthoritiesConstants.ADMIN)
                     // CRUD généré par JHipster : référentiels lisibles par tout utilisateur connecté, écriture réservée à l'admin.

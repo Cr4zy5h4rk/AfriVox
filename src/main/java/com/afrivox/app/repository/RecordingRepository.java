@@ -43,6 +43,17 @@ public interface RecordingRepository extends JpaRepository<Recording, Long> {
     )
     long validatedDurationMsByLanguage(@Param("languageId") Long languageId);
 
+    /**
+     * Enregistrements eligibles a un dataset : valides, de la langue demandee, et dont le contributeur a encore un
+     * consentement de collecte actif (un retrait de consentement exclut donc ses audios des versions suivantes).
+     */
+    @Query(
+        "select r from Recording r join fetch r.prompt p join fetch r.contributor where r.status = com.afrivox.app.domain.enumeration.RecordingStatus.VALIDATED " +
+            "and r.prompt.campaign.language.id = :languageId and exists (select c.id from Consent c where c.profile.id = r.contributor.id " +
+            "and c.kind = com.afrivox.app.domain.enumeration.ConsentKind.COLLECTION and c.revokedAt is null) order by r.id"
+    )
+    List<Recording> findEligibleForDataset(@Param("languageId") Long languageId);
+
     /** Enregistrements d'un contributeur (les siens). */
     Page<Recording> findAllByContributorId(Long contributorId, Pageable pageable);
 

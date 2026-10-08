@@ -19,6 +19,8 @@ public class ApplicationProperties {
 
     private final Audio audio = new Audio();
 
+    private final Datasets datasets = new Datasets();
+
     /** Active les comptes a l inscription (sans e-mail d activation). Faux par defaut. */
     private boolean autoActivateAccounts = false;
 
@@ -44,11 +46,41 @@ public class ApplicationProperties {
         return consent;
     }
 
+    public Datasets getDatasets() {
+        return datasets;
+    }
+
     public Audio getAudio() {
         return audio;
     }
 
     // jhipster-needle-application-properties-property-getter
+
+    /** Datasets publies : dossier des archives et duree de validite des liens de telechargement signes. */
+    public static class Datasets {
+
+        /** Dossier des archives .zip, a sauvegarder comme les audios (volume Docker en production). */
+        private String storageDir = "data/datasets";
+
+        /** Duree de validite d'un lien de telechargement, en secondes. */
+        private long linkTtlSeconds = 600;
+
+        public String getStorageDir() {
+            return storageDir;
+        }
+
+        public void setStorageDir(String storageDir) {
+            this.storageDir = storageDir;
+        }
+
+        public long getLinkTtlSeconds() {
+            return linkTtlSeconds;
+        }
+
+        public void setLinkTtlSeconds(long linkTtlSeconds) {
+            this.linkTtlSeconds = linkTtlSeconds;
+        }
+    }
 
     public static class Liquibase {
 

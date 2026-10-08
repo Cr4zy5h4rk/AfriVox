@@ -41,4 +41,10 @@ public interface LanguageQualificationRepository extends JpaRepository<LanguageQ
         "select languageQualification from LanguageQualification languageQualification left join fetch languageQualification.profile left join fetch languageQualification.language where languageQualification.id =:id"
     )
     Optional<LanguageQualification> findOneWithToOneRelationships(@Param("id") Long id);
+
+    /** Nombre de qualifications par langue pour un statut donné : {@code [languageId, count]} (une requête, pas de N+1). */
+    @Query(
+        "select q.language.id, count(q) from LanguageQualification q where q.status = :status and q.language is not null group by q.language.id"
+    )
+    List<Object[]> countByLanguageForStatus(@Param("status") com.afrivox.app.domain.enumeration.QualificationStatus status);
 }

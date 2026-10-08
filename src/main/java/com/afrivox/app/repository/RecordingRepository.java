@@ -80,4 +80,11 @@ public interface RecordingRepository extends JpaRepository<Recording, Long> {
 
     @Query("select recording from Recording recording left join fetch recording.contributor where recording.id =:id")
     Optional<Recording> findOneWithToOneRelationships(@Param("id") Long id);
+
+    /** Enregistrements par langue et par statut : {@code [languageId, status, count]} (une requête, pas de N+1). */
+    @Query(
+        "select r.prompt.campaign.language.id, r.status, count(r) from Recording r " +
+            "where r.prompt.campaign.language is not null group by r.prompt.campaign.language.id, r.status"
+    )
+    List<Object[]> countByLanguageAndStatus();
 }

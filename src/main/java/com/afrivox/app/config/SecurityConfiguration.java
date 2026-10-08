@@ -56,6 +56,8 @@ public class SecurityConfiguration {
                     .requestMatchers("/api/me/recordings/**", "/api/me/campaigns/**").hasAnyAuthority(AuthoritiesConstants.CONTRIBUTOR, AuthoritiesConstants.ADMIN)
                     // Publication de modèles : développeurs (et admin). Chacun ne gère que les siens.
                     .requestMatchers("/api/me/models/**").hasAnyAuthority(AuthoritiesConstants.DEVELOPER, AuthoritiesConstants.ADMIN)
+                    // Validation par les pairs : contributeurs (et admin). Le service exige en plus une qualification dans la langue.
+                    .requestMatchers("/api/me/validation/**").hasAnyAuthority(AuthoritiesConstants.CONTRIBUTOR, AuthoritiesConstants.ADMIN)
                     // Telechargement de datasets : developpeurs et organisations (et admin) demandent un lien signe.
                     .requestMatchers("/api/me/downloads/**").hasAnyAuthority(AuthoritiesConstants.DEVELOPER, AuthoritiesConstants.ORGANIZATION, AuthoritiesConstants.ADMIN)
                     // Demandes de dataset sur mesure : organisations (et admin). Chacune ne voit que les siennes.

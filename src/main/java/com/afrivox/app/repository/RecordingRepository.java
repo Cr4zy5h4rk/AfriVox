@@ -54,6 +54,31 @@ public interface RecordingRepository extends JpaRepository<Recording, Long> {
     )
     List<Recording> findEligibleForDataset(@Param("languageId") Long languageId);
 
+    /** Enregistrements a relire : envoyes, de la langue, pas les miens, pas deja relus par moi, pas encore assez relus. */
+    @Query(
+        "select r from Recording r join fetch r.prompt where r.status = com.afrivox.app.domain.enumeration.RecordingStatus.SUBMITTED " +
+            "and r.prompt.campaign.language.id = :languageId and r.contributor.id <> :reviewerId " +
+            "and not exists (select rv.id from RecordingReview rv where rv.recording.id = r.id and rv.reviewer.id = :reviewerId) " +
+            "and (select count(rv2) from RecordingReview rv2 where rv2.recording.id = r.id and rv2.gold = false) < :maxReviews " +
+            "order by r.createdAt"
+    )
+    List<Recording> findToReview(
+        @Param("languageId") Long languageId,
+        @Param("reviewerId") Long reviewerId,
+        @Param("maxReviews") long maxReviews,
+        Pageable pageable
+    );
+
+    /** Enregistrements deja tranches (candidats aux taches pieges) que ce relecteur n'a jamais vus. */
+    @Query(
+        "select r from Recording r join fetch r.prompt where r.status in (com.afrivox.app.domain.enumeration.RecordingStatus.VALIDATED, " +
+            "com.afrivox.app.domain.enumeration.RecordingStatus.REJECTED) and r.prompt.campaign.language.id = :languageId " +
+            "and r.contributor.id <> :reviewerId " +
+            "and not exists (select rv.id from RecordingReview rv where rv.recording.id = r.id and rv.reviewer.id = :reviewerId) " +
+            "order by r.id"
+    )
+    List<Recording> findSettledForTrap(@Param("languageId") Long languageId, @Param("reviewerId") Long reviewerId, Pageable pageable);
+
     /** Enregistrements d'un contributeur (les siens). */
     Page<Recording> findAllByContributorId(Long contributorId, Pageable pageable);
 

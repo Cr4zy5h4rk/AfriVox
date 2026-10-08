@@ -14,6 +14,14 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface LanguageQualificationRepository extends JpaRepository<LanguageQualification, Long> {
+    Optional<LanguageQualification> findOneByProfileIdAndLanguageId(Long profileId, Long languageId);
+
+    @Query("select q from LanguageQualification q join fetch q.language where q.profile.id = :profileId order by q.language.name")
+    List<LanguageQualification> findAllByProfileIdWithLanguage(@Param("profileId") Long profileId);
+
+    @Query("select q from LanguageQualification q join fetch q.language join fetch q.profile where q.status = :status order by q.id")
+    List<LanguageQualification> findAllByStatusWithDetails(@Param("status") com.afrivox.app.domain.enumeration.QualificationStatus status);
+
     default Optional<LanguageQualification> findOneWithEagerRelationships(Long id) {
         return this.findOneWithToOneRelationships(id);
     }

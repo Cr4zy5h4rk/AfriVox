@@ -14,6 +14,23 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface RecordingReviewRepository extends JpaRepository<RecordingReview, Long> {
+    List<RecordingReview> findAllByRecordingId(Long recordingId);
+
+    boolean existsByRecordingIdAndReviewerId(Long recordingId, Long reviewerId);
+
+    /**
+     * Fiabilite d'un relecteur sur une langue : {@code [nombre de taches pieges, nombre de bonnes reponses]}.
+     * Une reponse est bonne si elle va dans le sens de la decision deja prise (valide = ACCEPT, rejete = REJECT).
+     */
+    @Query(
+        "select count(rv), coalesce(sum(case when (rv.verdict = com.afrivox.app.domain.enumeration.Verdict.ACCEPT " +
+            "and r.status = com.afrivox.app.domain.enumeration.RecordingStatus.VALIDATED) or (rv.verdict = com.afrivox.app.domain.enumeration.Verdict.REJECT " +
+            "and r.status = com.afrivox.app.domain.enumeration.RecordingStatus.REJECTED) then 1 else 0 end), 0) " +
+            "from RecordingReview rv join rv.recording r where rv.gold = true and rv.reviewer.id = :reviewerId " +
+            "and r.prompt.campaign.language.id = :languageId"
+    )
+    List<Object[]> trapStats(@Param("reviewerId") Long reviewerId, @Param("languageId") Long languageId);
+
     default Optional<RecordingReview> findOneWithEagerRelationships(Long id) {
         return this.findOneWithToOneRelationships(id);
     }

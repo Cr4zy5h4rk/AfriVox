@@ -109,7 +109,7 @@ public class OrganizationRequestService {
         return toView(requestRepository.save(request));
     }
 
-    @Transactional(readOnly = true)
+    // Pas readOnly : getOrCreateCurrent() peut creer le profil (INSERT), interdit dans une transaction en lecture seule.
     public List<RequestView> mine() {
         UserProfile requester = userProfileService.getOrCreateCurrent();
         return requestRepository.findAllByRequesterId(requester.getId()).stream().map(OrganizationRequestService::toView).toList();

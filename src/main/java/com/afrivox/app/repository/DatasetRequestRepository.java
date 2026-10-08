@@ -41,4 +41,10 @@ public interface DatasetRequestRepository extends JpaRepository<DatasetRequest, 
         "select datasetRequest from DatasetRequest datasetRequest left join fetch datasetRequest.language left join fetch datasetRequest.requester where datasetRequest.id =:id"
     )
     Optional<DatasetRequest> findOneWithToOneRelationships(@Param("id") Long id);
+
+    /** Demandes d'un demandeur, les plus récentes d'abord (espace organisation). */
+    @Query(
+        "select datasetRequest from DatasetRequest datasetRequest left join fetch datasetRequest.language where datasetRequest.requester.id = :requesterId order by datasetRequest.createdAt desc"
+    )
+    List<DatasetRequest> findAllByRequesterId(@Param("requesterId") Long requesterId);
 }

@@ -56,6 +56,8 @@ public class SecurityConfiguration {
                     .requestMatchers("/api/me/recordings/**", "/api/me/campaigns/**").hasAnyAuthority(AuthoritiesConstants.CONTRIBUTOR, AuthoritiesConstants.ADMIN)
                     // Publication de modèles : développeurs (et admin). Chacun ne gère que les siens.
                     .requestMatchers("/api/me/models/**").hasAnyAuthority(AuthoritiesConstants.DEVELOPER, AuthoritiesConstants.ADMIN)
+                    // Demandes de dataset sur mesure : organisations (et admin). Chacune ne voit que les siennes.
+                    .requestMatchers("/api/me/requests/**").hasAnyAuthority(AuthoritiesConstants.ORGANIZATION, AuthoritiesConstants.ADMIN)
                     // CRUD généré par JHipster : référentiels lisibles par tout utilisateur connecté, écriture réservée à l'admin.
                     .requestMatchers(HttpMethod.GET, "/api/languages/**", "/api/campaigns/**", "/api/prompts/**", "/api/datasets/**", "/api/ml-models/**", "/api/evaluations/**").authenticated()
                     // Tout le reste du CRUD généré (données personnelles, audio, crédits, clés d'API, chemins de fichiers) :

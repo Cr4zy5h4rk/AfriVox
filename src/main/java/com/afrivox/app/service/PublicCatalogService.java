@@ -22,6 +22,7 @@ import com.afrivox.app.repository.RecordingRepository;
 import jakarta.persistence.criteria.Predicate;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -47,6 +48,7 @@ public class PublicCatalogService {
 
     private static final int MAX_PAGE_SIZE = 48;
     private static final int MAX_LEADERBOARD = 100;
+    private static final int MAX_VERSION_OPTIONS = 30;
     private static final double MS_PER_HOUR = 3_600_000d;
 
     /** Chiffres de la page d'accueil. */
@@ -96,6 +98,12 @@ public class PublicCatalogService {
 
     public record DatasetDetail(DatasetSummary dataset, List<VersionView> versions) {}
 
+    /** Une version de dataset citee par un modele. */
+    public record DatasetRef(String slug, String title, String version) {}
+
+    /** Une version publiee proposee dans le formulaire de publication d'un modele. */
+    public record VersionOption(Long id, String slug, String title, String version, String languageCode) {}
+
     public record ModelSummary(
         Long id,
         String name,
@@ -110,6 +118,7 @@ public class PublicCatalogService {
         String languageName,
         String trainedOnDataset,
         String trainedOnVersion,
+        List<DatasetRef> otherDatasets,
         Float bestWer
     ) {}
 
@@ -294,8 +303,36 @@ public class PublicCatalogService {
             language == null ? null : language.getName(),
             trained == null || trained.getDataset() == null ? null : trained.getDataset().getSlug(),
             trained == null ? null : trained.getLabel(),
+            m
+                .getOtherDatasets()
+                .stream()
+                .filter(v -> v.getDataset() != null)
+                .sorted(Comparator.comparing((DatasetVersion v) -> v.getDataset().getTitle()).thenComparing(DatasetVersion::getLabel))
+                .map(v -> new DatasetRef(v.getDataset().getSlug(), v.getDataset().getTitle(), v.getLabel()))
+                .toList(),
             evaluationRepository.bestWer(m.getId())
         );
+    }
+
+    /**
+     * Versions publiees que l'on peut citer comme donnees d'entrainement, filtrees par texte (titre ou slug) et
+     * limitees : le catalogue peut compter des centaines de datasets, on ne les envoie jamais tous.
+     */
+    public List<VersionOption> publishedVersions(String q, int limit) {
+        int size = Math.max(1, Math.min(limit, MAX_VERSION_OPTIONS));
+        return datasetVersionRepository
+            .searchPublishedWithDataset(likePattern(normalize(q)), PageRequest.of(0, size))
+            .stream()
+            .map(v ->
+                new VersionOption(
+                    v.getId(),
+                    v.getDataset().getSlug(),
+                    v.getDataset().getTitle(),
+                    v.getLabel(),
+                    v.getDataset().getLanguage() == null ? null : v.getDataset().getLanguage().getCode()
+                )
+            )
+            .toList();
     }
 
     private DatasetSummary toSummary(Dataset d) {

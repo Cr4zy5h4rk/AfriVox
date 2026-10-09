@@ -29,6 +29,18 @@ public interface DatasetVersionRepository extends DatasetVersionRepositoryWithBa
         com.afrivox.app.domain.enumeration.VersionStatus status
     );
 
+    /**
+     * Versions publiees dont le titre ou le slug du dataset correspond au motif LIKE (deja echappe, minuscules), avec
+     * leur dataset et sa langue : recherche du formulaire de publication d'un modele.
+     */
+    @Query(
+        "select v from DatasetVersion v join fetch v.dataset d left join fetch d.language " +
+            "where v.status = com.afrivox.app.domain.enumeration.VersionStatus.PUBLISHED " +
+            "and (lower(d.title) like :pattern escape '\\' or lower(d.slug) like :pattern escape '\\') " +
+            "order by d.title, v.createdAt desc"
+    )
+    List<DatasetVersion> searchPublishedWithDataset(@Param("pattern") String pattern, Pageable pageable);
+
     boolean existsByDatasetIdAndLabel(Long datasetId, String label);
 
     /** Nombre de datasets ayant au moins une version publiee. */

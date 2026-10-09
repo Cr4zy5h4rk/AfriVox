@@ -13,7 +13,9 @@ import com.afrivox.app.service.PublicCatalogService.ModelSummary;
 import com.afrivox.app.web.rest.errors.BadRequestAlertException;
 import java.net.URI;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,8 +34,12 @@ public class ModelPublishingService {
         String license,
         String url,
         String languageCode,
-        Long trainedOnVersionId
+        Long trainedOnVersionId,
+        List<Long> otherVersionIds
     ) {}
+
+    /** Nombre maximal de datasets supplementaires par modele. */
+    static final int MAX_OTHER_DATASETS = 10;
 
     private final MlModelRepository modelRepository;
     private final LanguageRepository languageRepository;
@@ -75,13 +81,32 @@ public class ModelPublishingService {
             model.setLanguage(language);
         }
         if (input.trainedOnVersionId() != null) {
-            DatasetVersion version = versionRepository
-                .findById(input.trainedOnVersionId())
-                .filter(v -> v.getStatus() == VersionStatus.PUBLISHED)
-                .orElseThrow(() -> new BadRequestAlertException("Version de dataset introuvable", ENTITY_NAME, "versionnotfound"));
-            model.setTrainedOn(version);
+            model.setTrainedOn(publishedVersion(input.trainedOnVersionId()));
         }
+
+        // Datasets supplementaires : sans dataset principal on ne saurait pas lequel est lequel ; doublons ignores,
+        // et le principal n'est pas repete dans la liste.
+        Set<Long> otherIds = new LinkedHashSet<>(input.otherVersionIds() == null ? List.of() : input.otherVersionIds());
+        otherIds.remove(input.trainedOnVersionId());
+        if (!otherIds.isEmpty() && input.trainedOnVersionId() == null) {
+            throw new BadRequestAlertException("Choisissez d'abord le dataset principal", ENTITY_NAME, "primarymissing");
+        }
+        if (otherIds.size() > MAX_OTHER_DATASETS) {
+            throw new BadRequestAlertException("Trop de datasets supplementaires", ENTITY_NAME, "toomanydatasets");
+        }
+        otherIds.forEach(id -> model.getOtherDatasets().add(publishedVersion(id)));
         return catalog.toModelSummary(modelRepository.save(model));
+    }
+
+    /** Seules les versions publiees peuvent etre citees (une brouillon n'est pas visible du public). */
+    private DatasetVersion publishedVersion(Long id) {
+        if (id == null) {
+            throw new BadRequestAlertException("Version de dataset introuvable", ENTITY_NAME, "versionnotfound");
+        }
+        return versionRepository
+            .findById(id)
+            .filter(v -> v.getStatus() == VersionStatus.PUBLISHED)
+            .orElseThrow(() -> new BadRequestAlertException("Version de dataset introuvable", ENTITY_NAME, "versionnotfound"));
     }
 
     @Transactional(readOnly = true)

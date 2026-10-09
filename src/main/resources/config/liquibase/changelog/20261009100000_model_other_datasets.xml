@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Datasets supplementaires declares par le developpeur pour un modele (en plus de ml_model.trained_on_id). -->
+    <changeSet id="20261009100000-1" author="afrivox">
+        <createTable tableName="rel_ml_model__other_dataset">
+            <column name="ml_model_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="dataset_version_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="rel_ml_model__other_dataset" columnNames="ml_model_id, dataset_version_id"
+                       constraintName="pk_rel_ml_model__other_dataset"/>
+        <addForeignKeyConstraint baseColumnNames="ml_model_id" baseTableName="rel_ml_model__other_dataset"
+                                 constraintName="fk_rel_ml_model__other_dataset__ml_model_id"
+                                 referencedColumnNames="id" referencedTableName="ml_model" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseColumnNames="dataset_version_id" baseTableName="rel_ml_model__other_dataset"
+                                 constraintName="fk_rel_ml_model__other_dataset__dataset_version_id"
+                                 referencedColumnNames="id" referencedTableName="dataset_version"/>
+    </changeSet>
+</databaseChangeLog>

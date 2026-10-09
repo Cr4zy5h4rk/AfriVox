@@ -32,7 +32,8 @@ public class MyModelResource {
         @Size(max = 60) String license,
         @Size(max = 300) String url,
         @Size(max = 10) String languageCode,
-        Long trainedOnVersionId
+        Long trainedOnVersionId,
+        @Size(max = 10) List<Long> otherVersionIds
     ) {}
 
     private final ModelPublishingService service;
@@ -55,7 +56,8 @@ public class MyModelResource {
             request.license(),
             request.url(),
             request.languageCode(),
-            request.trainedOnVersionId()
+            request.trainedOnVersionId(),
+            request.otherVersionIds()
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(service.publish(input));
     }

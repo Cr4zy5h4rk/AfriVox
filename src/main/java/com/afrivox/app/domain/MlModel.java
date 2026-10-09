@@ -7,6 +7,8 @@ import jakarta.validation.constraints.*;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 
@@ -68,6 +70,19 @@ public class MlModel implements Serializable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JsonIgnoreProperties(value = { "dataset", "recordings" }, allowSetters = true)
     private DatasetVersion trainedOn;
+
+    /**
+     * Autres versions de datasets utilisees pour l'entrainement, en plus du dataset principal {@link #trainedOn}.
+     * Declaratif : le developpeur indique ce qu'il a utilise, la plateforme ne peut pas le verifier.
+     */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "rel_ml_model__other_dataset",
+        joinColumns = @JoinColumn(name = "ml_model_id"),
+        inverseJoinColumns = @JoinColumn(name = "dataset_version_id")
+    )
+    @JsonIgnoreProperties(value = { "dataset", "recordings" }, allowSetters = true)
+    private Set<DatasetVersion> otherDatasets = new HashSet<>();
 
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
@@ -212,6 +227,14 @@ public class MlModel implements Serializable {
     public MlModel trainedOn(DatasetVersion datasetVersion) {
         this.setTrainedOn(datasetVersion);
         return this;
+    }
+
+    public Set<DatasetVersion> getOtherDatasets() {
+        return this.otherDatasets;
+    }
+
+    public void setOtherDatasets(Set<DatasetVersion> otherDatasets) {
+        this.otherDatasets = otherDatasets;
     }
 
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here

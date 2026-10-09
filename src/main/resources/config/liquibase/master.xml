@@ -49,5 +49,6 @@
     <include file="config/liquibase/changelog/20261006200000_seed_dev_wolof.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261006210000_seed_dev_dataset.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261008100000_added_purchases.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261009100000_model_other_datasets.xml" relativeToChangelogFile="false"/>
     <!-- jhipster-needle-liquibase-add-incremental-changelog - JHipster will add incremental liquibase changelogs here -->
 </databaseChangeLog>

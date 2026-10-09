@@ -11,6 +11,7 @@ import com.afrivox.app.service.PublicCatalogService.ModelDetail;
 import com.afrivox.app.service.PublicCatalogService.ModelSummary;
 import com.afrivox.app.service.PublicCatalogService.PageView;
 import com.afrivox.app.service.PublicCatalogService.Stats;
+import com.afrivox.app.service.PublicCatalogService.VersionOption;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -62,6 +63,12 @@ public class PublicCatalogResource {
             .dataset(slug)
             .map(ResponseEntity::ok)
             .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /** Versions publiees (id, dataset, etiquette) : sert a lier un modele a ses donnees d'entrainement. */
+    @GetMapping("/dataset-versions")
+    public List<VersionOption> datasetVersions(@RequestParam(required = false) String q, @RequestParam(defaultValue = "20") int limit) {
+        return catalog.publishedVersions(q, limit);
     }
 
     @GetMapping("/models")

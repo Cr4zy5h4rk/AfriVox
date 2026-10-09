@@ -58,8 +58,10 @@ public class SecurityConfiguration {
                     .requestMatchers("/api/me/models/**").hasAnyAuthority(AuthoritiesConstants.DEVELOPER, AuthoritiesConstants.ADMIN)
                     // Validation par les pairs : contributeurs (et admin). Le service exige en plus une qualification dans la langue.
                     .requestMatchers("/api/me/validation/**").hasAnyAuthority(AuthoritiesConstants.CONTRIBUTOR, AuthoritiesConstants.ADMIN)
-                    // Telechargement de datasets : developpeurs et organisations (et admin) demandent un lien signe.
-                    .requestMatchers("/api/me/downloads/**").hasAnyAuthority(AuthoritiesConstants.DEVELOPER, AuthoritiesConstants.ORGANIZATION, AuthoritiesConstants.ADMIN)
+                    // Ancien lien direct, sans achat ni licence : reserve a l'admin. Les autres passent par /api/purchases.
+                    .requestMatchers("/api/me/downloads/**").hasAuthority(AuthoritiesConstants.ADMIN)
+                    // Achats : memes roles ; le service ne manipule que les achats du compte connecte.
+                    .requestMatchers("/api/me/purchases/**", "/api/purchases/**").hasAnyAuthority(AuthoritiesConstants.DEVELOPER, AuthoritiesConstants.ORGANIZATION, AuthoritiesConstants.ADMIN)
                     // Demandes de dataset sur mesure : organisations (et admin). Chacune ne voit que les siennes.
                     .requestMatchers("/api/me/requests/**").hasAnyAuthority(AuthoritiesConstants.ORGANIZATION, AuthoritiesConstants.ADMIN)
                     // CRUD généré par JHipster : référentiels lisibles par tout utilisateur connecté, écriture réservée à l'admin.

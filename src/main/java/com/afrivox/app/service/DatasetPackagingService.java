@@ -22,8 +22,11 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
@@ -35,8 +38,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Publication d'une version de dataset : on fige la liste des enregistrements eligibles, on les range dans une archive
- * {@code .zip} (audios + manifeste) et on enregistre son empreinte SHA-256. Une version publiee n'est plus jamais
- * modifiee : une correction ou un retrait de consentement donne une nouvelle version.
+ * {@code .zip} et on enregistre son empreinte SHA-256. Une version publiee n'est plus jamais modifiee : une correction
+ * ou un retrait de consentement donne une nouvelle version.
+ * <p>
+ * Contenu de l'archive : {@code audio/}, {@code manifest.tsv}, {@code splits/} (train, dev, test), {@code DATASHEET.md}
+ * (fiche), {@code LICENSE.txt} et {@code checksums.sha256} (empreinte de chaque autre fichier, format {@code sha256sum}).
  */
 @Service
 @Transactional
@@ -47,6 +53,35 @@ public class DatasetPackagingService {
     private static final String ENTITY_NAME = "datasetVersion";
 
     private static final double MS_PER_HOUR = 3_600_000d;
+
+    private static final String MANIFEST_HEADER = "id\tfile\tspeaker\tduration_ms\ttext\n";
+
+    /** Part des locuteurs mise de cote pour la mise au point (dev) et pour l'evaluation (test). */
+    private static final double HOLDOUT_SHARE = 0.10;
+
+    /** En dessous de ce nombre de locuteurs, un decoupage separe n'aurait pas de sens : tout va en train. */
+    private static final int MIN_SPEAKERS_FOR_SPLITS = 3;
+
+    private enum Split {
+        TRAIN,
+        DEV,
+        TEST;
+
+        String fileName() {
+            return "splits/" + name().toLowerCase() + ".tsv";
+        }
+    }
+
+    /** Une ligne du manifeste : un enregistrement, son fichier dans l'archive et son locuteur pseudonymise. */
+    private record Row(Recording recording, String name, String speaker, String text, Split split) {
+        String line() {
+            return "%d\t%s\t%s\t%d\t%s\n".formatted(recording.getId(), name, speaker, durationMs(), text);
+        }
+
+        long durationMs() {
+            return recording.getDurationMs() == null ? 0 : recording.getDurationMs();
+        }
+    }
 
     private final ApplicationProperties.Audio audioProperties;
     private final ApplicationProperties.Datasets datasetProperties;
@@ -98,7 +133,8 @@ public class DatasetPackagingService {
             .map(r -> r.getContributor().getId())
             .distinct()
             .count();
-        String sha256 = writeArchive(target, dataset, label, license, recordings);
+        List<Row> rows = buildRows(dataset, label, recordings);
+        String sha256 = writeArchive(target, dataset, label, license, rows);
 
         DatasetVersion version = new DatasetVersion();
         version.setDataset(dataset);
@@ -123,47 +159,86 @@ public class DatasetPackagingService {
         return versionRepository.save(version);
     }
 
+    /**
+     * Prepare les lignes du manifeste : nom du fichier, locuteur pseudonymise (spk001...) et decoupage.
+     * Le jeu de donnees ne revele aucun compte.
+     */
+    private List<Row> buildRows(Dataset dataset, String label, List<Recording> recordings) {
+        Map<Long, String> pseudonyms = new LinkedHashMap<>();
+        for (Recording r : recordings) {
+            pseudonyms.computeIfAbsent(r.getContributor().getId(), id -> "spk%03d".formatted(pseudonyms.size() + 1));
+        }
+        Map<Long, Split> splits = assignSplits(pseudonyms.keySet().stream().toList(), dataset.getSlug() + "/" + label);
+
+        List<Row> rows = new ArrayList<>(recordings.size());
+        for (Recording r : recordings) {
+            String extension = r.getAudioPath().substring(r.getAudioPath().lastIndexOf('.') + 1);
+            String text = r.getTranscript() != null && !r.getTranscript().isBlank() ? r.getTranscript() : r.getPrompt().getContent();
+            rows.add(
+                new Row(
+                    r,
+                    "audio/" + r.getId() + "." + extension,
+                    pseudonyms.get(r.getContributor().getId()),
+                    text.replaceAll("[\\t\\r\\n]+", " "),
+                    splits.get(r.getContributor().getId())
+                )
+            );
+        }
+        return rows;
+    }
+
+    /**
+     * Decoupage par locuteur (jamais par enregistrement) : un locuteur du jeu de test n'apparait ni en train ni en dev,
+     * sinon le modele evalue aurait deja entendu la voix. L'ordre des locuteurs est melange de facon deterministe
+     * (graine = dataset + version) pour qu'il ne suive pas l'ordre d'inscription, et reste reproductible.
+     */
+    static Map<Long, Split> assignSplits(List<Long> contributorIds, String seed) {
+        Map<Long, Split> result = new HashMap<>();
+        if (contributorIds.size() < MIN_SPEAKERS_FOR_SPLITS) {
+            contributorIds.forEach(id -> result.put(id, Split.TRAIN));
+            return result;
+        }
+        long mix = seed.hashCode();
+        List<Long> ordered = new ArrayList<>(contributorIds);
+        ordered.sort(Comparator.comparingLong((Long id) -> (id ^ mix) * 0x9E3779B97F4A7C15L).thenComparing(Comparator.naturalOrder()));
+        int holdout = Math.max(1, (int) Math.round(ordered.size() * HOLDOUT_SHARE));
+        for (int i = 0; i < ordered.size(); i++) {
+            result.put(ordered.get(i), i < holdout ? Split.TEST : i < 2 * holdout ? Split.DEV : Split.TRAIN);
+        }
+        return result;
+    }
+
     /** Ecrit l'archive dans un fichier temporaire, la renomme, et renvoie son SHA-256. */
-    private String writeArchive(Path target, Dataset dataset, String label, LicenseKind license, List<Recording> recordings) {
+    private String writeArchive(Path target, Dataset dataset, String label, LicenseKind license, List<Row> rows) {
         Path audioRoot = Path.of(audioProperties.getStorageDir()).toAbsolutePath().normalize();
         try {
             Files.createDirectories(target.getParent());
             Path tmp = Files.createTempFile(target.getParent(), "build-", ".tmp");
             try {
                 try (OutputStream out = Files.newOutputStream(tmp); ZipOutputStream zip = new ZipOutputStream(out)) {
-                    StringBuilder manifest = new StringBuilder("id\tfile\tspeaker\tduration_ms\ttext\n");
-                    // Les locuteurs sont pseudonymises (spk001...) : le jeu de donnees ne revele aucun compte.
-                    Map<Long, String> pseudonyms = new HashMap<>();
-                    for (Recording r : recordings) {
-                        Path audio = audioRoot.resolve(r.getAudioPath()).normalize();
+                    // Empreinte de chaque fichier de l'archive, au format de `sha256sum -c`.
+                    StringBuilder checksums = new StringBuilder();
+                    for (Row row : rows) {
+                        Path audio = audioRoot.resolve(row.recording().getAudioPath()).normalize();
                         if (!audio.startsWith(audioRoot) || !Files.isRegularFile(audio)) {
-                            throw new IllegalStateException("Fichier audio manquant pour l'enregistrement " + r.getId());
+                            throw new IllegalStateException("Fichier audio manquant pour l'enregistrement " + row.recording().getId());
                         }
-                        String extension = r.getAudioPath().substring(r.getAudioPath().lastIndexOf('.') + 1);
-                        String name = "audio/" + r.getId() + "." + extension;
-                        zip.putNextEntry(new ZipEntry(name));
-                        Files.copy(audio, zip);
-                        zip.closeEntry();
-
-                        String speaker = pseudonyms.computeIfAbsent(r.getContributor().getId(), id ->
-                            "spk%03d".formatted(pseudonyms.size() + 1)
-                        );
-                        String text =
-                            r.getTranscript() != null && !r.getTranscript().isBlank() ? r.getTranscript() : r.getPrompt().getContent();
-                        manifest
-                            .append(r.getId())
-                            .append('\t')
-                            .append(name)
-                            .append('\t')
-                            .append(speaker)
-                            .append('\t')
-                            .append(r.getDurationMs())
-                            .append('\t')
-                            .append(text.replaceAll("[\\t\\r\\n]+", " "))
-                            .append('\n');
+                        // Une phrase courte tient en memoire (5 Mo au plus) : on lit une fois pour copier et hacher.
+                        addBytes(zip, checksums, row.name(), Files.readAllBytes(audio));
                     }
-                    addText(zip, "manifest.tsv", manifest.toString());
-                    addText(zip, "README.txt", readme(dataset, label, license, recordings.size()));
+                    StringBuilder manifest = new StringBuilder(MANIFEST_HEADER);
+                    rows.forEach(row -> manifest.append(row.line()));
+                    addText(zip, checksums, "manifest.tsv", manifest.toString());
+                    for (Split split : Split.values()) {
+                        StringBuilder part = new StringBuilder(MANIFEST_HEADER);
+                        rows.stream()
+                            .filter(row -> row.split() == split)
+                            .forEach(row -> part.append(row.line()));
+                        addText(zip, checksums, split.fileName(), part.toString());
+                    }
+                    addText(zip, checksums, "DATASHEET.md", datasheet(dataset, label, license, rows));
+                    addText(zip, checksums, "LICENSE.txt", licenseText(license, datasetProperties.getLicenseVersion()));
+                    addText(zip, null, "checksums.sha256", checksums.toString());
                 }
                 String sha256 = sha256Hex(tmp);
                 Files.move(tmp, target, StandardCopyOption.ATOMIC_MOVE);
@@ -177,18 +252,106 @@ public class DatasetPackagingService {
         }
     }
 
-    private static void addText(ZipOutputStream zip, String name, String content) throws IOException {
-        zip.putNextEntry(new ZipEntry(name));
-        zip.write(content.getBytes(StandardCharsets.UTF_8));
-        zip.closeEntry();
+    private static void addText(ZipOutputStream zip, StringBuilder checksums, String name, String content) throws IOException {
+        addBytes(zip, checksums, name, content.getBytes(StandardCharsets.UTF_8));
     }
 
-    private static String readme(Dataset dataset, String label, LicenseKind license, int count) {
+    /** Ajoute un fichier a l'archive et, si {@code checksums} n'est pas nul, y note son empreinte. */
+    private static void addBytes(ZipOutputStream zip, StringBuilder checksums, String name, byte[] bytes) throws IOException {
+        zip.putNextEntry(new ZipEntry(name));
+        zip.write(bytes);
+        zip.closeEntry();
+        if (checksums != null) {
+            checksums.append(sha256Hex(bytes)).append("  ").append(name).append('\n');
+        }
+    }
+
+    /** Fiche du dataset. Tout ce qui y figure est calcule a partir des enregistrements, rien n'est estime. */
+    private static String datasheet(Dataset dataset, String label, LicenseKind license, List<Row> rows) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("# ").append(dataset.getTitle()).append(" - version ").append(label).append("\n\n");
+        if (dataset.getDescription() != null && !dataset.getDescription().isBlank()) {
+            sb.append(dataset.getDescription()).append("\n\n");
+        }
+        long totalMs = rows.stream().mapToLong(Row::durationMs).sum();
+        sb.append("## Resume\n\n");
+        sb.append("- Langue : ").append(dataset.getLanguage().getName()).append('\n');
+        if (dataset.getDomain() != null) {
+            sb.append("- Domaine : ").append(dataset.getDomain()).append('\n');
+        }
+        sb.append("- Licence : ").append(license).append(" (voir LICENSE.txt)\n");
+        sb.append("- Enregistrements : ").append(rows.size()).append('\n');
+        sb.append("- Duree totale : %.2f h%n".formatted(totalMs / MS_PER_HOUR));
+        sb.append("- Locuteurs : ").append(rows.stream().map(Row::speaker).distinct().count()).append('\n');
+        sb.append("- Qualite : non evaluee (les controles automatiques ne sont pas encore calcules)\n\n");
+
+        sb.append("## Decoupage\n\n");
+        sb.append("Le decoupage est fait par locuteur : aucun locuteur n'apparait dans deux parties.\n\n");
+        sb.append("| Partie | Enregistrements | Locuteurs | Heures |\n|---|---|---|---|\n");
+        for (Split split : Split.values()) {
+            List<Row> part = rows
+                .stream()
+                .filter(row -> row.split() == split)
+                .toList();
+            sb.append(
+                "| %s | %d | %d | %.2f |%n".formatted(
+                    split.name().toLowerCase(),
+                    part.size(),
+                    part.stream().map(Row::speaker).distinct().count(),
+                    part.stream().mapToLong(Row::durationMs).sum() / MS_PER_HOUR
+                )
+            );
+        }
+        long speakerCount = rows.stream().map(Row::speaker).distinct().count();
+        if (speakerCount < MIN_SPEAKERS_FOR_SPLITS) {
+            sb.append("\nPeu de locuteurs dans cette version : tout est en train, dev et test sont vides.\n");
+        }
+
+        sb.append("\n## Collecte et validation\n\n");
+        sb.append("Phrases lues a voix haute par des contributeurs consentants, relues par des pairs qualifies ");
+        sb.append("(deux avis concordants). Seuls les enregistrements valides, dont le contributeur a un consentement ");
+        sb.append("de collecte actif a la date de publication, sont inclus. Les locuteurs sont pseudonymises.\n\n");
+
+        sb.append("## Contenu de l'archive\n\n");
+        sb.append("- `audio/` : un fichier par enregistrement\n");
+        sb.append("- `manifest.tsv` : id, file, speaker, duration_ms, text (tabulations)\n");
+        sb.append("- `splits/train.tsv`, `splits/dev.tsv`, `splits/test.tsv` : memes colonnes, par partie\n");
+        sb.append("- `LICENSE.txt` : conditions d'utilisation\n");
+        sb.append("- `checksums.sha256` : empreinte de chaque fichier, verifiable avec `sha256sum -c checksums.sha256`\n\n");
+
+        sb.append("## Limites\n\n");
+        sb.append("Phrases lues, pas de la parole spontanee. Le nombre de locuteurs et leur repartition ");
+        sb.append("(age, genre, accent) ne sont pas renseignes : ne pas en tirer de conclusion sur des populations.\n");
+        return sb.toString();
+    }
+
+    /**
+     * Texte de la licence. Il resume les droits par type de licence ; la version du texte est celle que l'acheteur
+     * accepte a l'achat. Ce texte est a faire relire par l'equipe avant tout usage reel.
+     */
+    private static String licenseText(LicenseKind license, String textVersion) {
+        String scope = switch (license) {
+            case PROTOTYPE -> "Essais et demonstrations internes. Aucune mise en production, aucune diffusion des donnees ni de modeles destines au public.";
+            case RESEARCH -> "Recherche et enseignement, publications comprises. Aucun usage commercial.";
+            case COMMERCIAL -> "Utilisation dans un produit ou un service commercial, y compris l'entrainement de modeles distribues.";
+        };
         return (
-            "%s - version %s%n%nEnregistrements : %d%nLicence : %s%nColonnes de manifest.tsv : id, file, speaker (pseudonyme), duration_ms, text%n%n" +
-            "Ces donnees ont ete collectees avec le consentement des contributeurs. Respectez la licence ci-dessus ;%n" +
-            "un modele entraine sur ce jeu de donnees herite de ses restrictions.%n"
-        ).formatted(dataset.getTitle(), label, count, license);
+            "Licence %s (texte %s)%n%n" +
+            "Usage autorise : %s%n%n" +
+            "Dans tous les cas :%n" +
+            "- Les donnees ne sont pas redistribuables, ni en l'etat ni sous forme d'extraits.%n" +
+            "- Il est interdit de chercher a identifier les locuteurs.%n" +
+            "- Un modele entraine sur ces donnees herite des restrictions de cette licence.%n" +
+            "- Un contributeur peut retirer son consentement : ses enregistrements sont alors exclus des versions suivantes.%n"
+        ).formatted(license, textVersion, scope);
+    }
+
+    private static String sha256Hex(byte[] bytes) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private static String sha256Hex(Path file) throws IOException {

@@ -80,6 +80,84 @@ public class ApplicationProperties {
         public void setLinkTtlSeconds(long linkTtlSeconds) {
             this.linkTtlSeconds = linkTtlSeconds;
         }
+
+        /** Validite d'un lien lie a un achat (48 h : dans la fourchette 24 a 72 h du cahier des charges). */
+        private long purchaseLinkTtlSeconds = 172_800;
+
+        /** Nombre de telechargements permis par lien d'achat. */
+        private int maxDownloadsPerLink = 5;
+
+        /** Nombre de liens qu'on peut generer par achat sur 24 h (limite le partage). */
+        private int maxLinksPerDay = 5;
+
+        /** Version du texte de licence que l'acheteur accepte ; a changer quand le texte change. */
+        private String licenseVersion = "2026-10-v1";
+
+        /**
+         * Coefficient applique au tarif horaire de la version selon la licence choisie. Valeurs de depart a valider
+         * par l'equipe : la licence commerciale couvre plus d'usages, donc coute plus.
+         */
+        private double researchMultiplier = 1.0;
+
+        private double prototypeMultiplier = 0.5;
+
+        private double commercialMultiplier = 3.0;
+
+        public long getPurchaseLinkTtlSeconds() {
+            return purchaseLinkTtlSeconds;
+        }
+
+        public void setPurchaseLinkTtlSeconds(long purchaseLinkTtlSeconds) {
+            this.purchaseLinkTtlSeconds = purchaseLinkTtlSeconds;
+        }
+
+        public int getMaxDownloadsPerLink() {
+            return maxDownloadsPerLink;
+        }
+
+        public void setMaxDownloadsPerLink(int maxDownloadsPerLink) {
+            this.maxDownloadsPerLink = maxDownloadsPerLink;
+        }
+
+        public int getMaxLinksPerDay() {
+            return maxLinksPerDay;
+        }
+
+        public void setMaxLinksPerDay(int maxLinksPerDay) {
+            this.maxLinksPerDay = maxLinksPerDay;
+        }
+
+        public String getLicenseVersion() {
+            return licenseVersion;
+        }
+
+        public void setLicenseVersion(String licenseVersion) {
+            this.licenseVersion = licenseVersion;
+        }
+
+        public double getResearchMultiplier() {
+            return researchMultiplier;
+        }
+
+        public void setResearchMultiplier(double researchMultiplier) {
+            this.researchMultiplier = researchMultiplier;
+        }
+
+        public double getPrototypeMultiplier() {
+            return prototypeMultiplier;
+        }
+
+        public void setPrototypeMultiplier(double prototypeMultiplier) {
+            this.prototypeMultiplier = prototypeMultiplier;
+        }
+
+        public double getCommercialMultiplier() {
+            return commercialMultiplier;
+        }
+
+        public void setCommercialMultiplier(double commercialMultiplier) {
+            this.commercialMultiplier = commercialMultiplier;
+        }
     }
 
     public static class Liquibase {

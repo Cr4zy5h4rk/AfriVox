@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Achats de datasets (licence acceptee, prix fige) et liens de telechargement emis pour chaque achat. -->
+    <changeSet id="20261008100000-1" author="afrivox">
+        <createTable tableName="purchase">
+            <column name="id" type="bigint">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="license" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="price_fcfa" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="license_version" type="varchar(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="license_accepted_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="payment_ref" type="varchar(60)"/>
+            <column name="created_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="profile_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="dataset_version_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint baseColumnNames="profile_id" baseTableName="purchase"
+                                 constraintName="fk_purchase__profile_id"
+                                 referencedColumnNames="id" referencedTableName="user_profile"/>
+        <addForeignKeyConstraint baseColumnNames="dataset_version_id" baseTableName="purchase"
+                                 constraintName="fk_purchase__dataset_version_id"
+                                 referencedColumnNames="id" referencedTableName="dataset_version"/>
+        <!-- Un compte n'achète qu'une fois une version sous une licence donnée. -->
+        <addUniqueConstraint tableName="purchase" columnNames="profile_id, dataset_version_id, license"
+                             constraintName="ux_purchase__profile_version_license"/>
+
+        <createTable tableName="purchase_link">
+            <column name="id" type="bigint">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="created_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expires_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="max_downloads" type="integer">
+                <constraints nullable="false"/>
+            </column>
+            <column name="download_count" type="integer" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="purchase_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint baseColumnNames="purchase_id" baseTableName="purchase_link"
+                                 constraintName="fk_purchase_link__purchase_id"
+                                 referencedColumnNames="id" referencedTableName="purchase"/>
+        <createIndex tableName="purchase_link" indexName="ix_purchase_link__purchase_created">
+            <column name="purchase_id"/>
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

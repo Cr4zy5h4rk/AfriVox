@@ -28,6 +28,13 @@ public interface MlModelRepository extends JpaRepository<MlModel, Long>, JpaSpec
         return this.findAllWithToOneRelationships(pageable);
     }
 
+    /** Modèles dont le dataset d'entraînement principal est ce dataset (toutes versions), récents d'abord. */
+    @Query(
+        "select mlModel from MlModel mlModel left join fetch mlModel.language join mlModel.trainedOn v " +
+            "where v.dataset.slug = :slug order by mlModel.createdAt desc"
+    )
+    List<MlModel> findTrainedOnDataset(@Param("slug") String slug);
+
     @Query(
         value = "select mlModel from MlModel mlModel left join fetch mlModel.owner left join fetch mlModel.language left join fetch mlModel.trainedOn",
         countQuery = "select count(mlModel) from MlModel mlModel"

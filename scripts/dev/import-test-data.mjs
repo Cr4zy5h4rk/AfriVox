@@ -29,14 +29,23 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  ADMIN_PASSWORD,
+  ADMIN_USER,
+  BASE_URL,
+  IMPORT_PASSWORD,
+  VALIDATORS,
+  checkSetup,
+  fail,
+  loggedIn,
+  publishDatasets,
+  qualifyValidators,
+  register,
+  reviewEverything,
+} from './lib.mjs';
 
-const BASE_URL = process.env.BASE_URL ?? 'http://localhost:8080';
-const ADMIN_USER = process.env.ADMIN_USER;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-const IMPORT_PASSWORD = process.env.IMPORT_PASSWORD; // mot de passe commun des comptes "imp_"
 const DRY_RUN = process.argv.includes('--dry-run');
 const LANGUAGE = 'wo';
-const CONSENT_VERSION = process.env.CONSENT_VERSION ?? '2026-10-v1';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DATA = path.resolve(here, '../../data');
@@ -52,7 +61,6 @@ const SOURCES = {
   urban_bus: { domain: 'transport', dir: CONVERTED_DIR },
 };
 
-const VALIDATORS = ['imp_val1', 'imp_val2', 'imp_val3', 'imp_val4'];
 const DEVELOPER = 'imp_dev';
 
 /**
@@ -71,21 +79,6 @@ const DATASETS = [
 ];
 
 // ---------------------------------------------------------------------------------------------------------------
-
-function fail(message) {
-  console.error(`\nERREUR : ${message}`);
-  process.exit(1);
-}
-
-function checkSetup() {
-  const host = new URL(BASE_URL).hostname;
-  if (!['localhost', '127.0.0.1', '::1', '[::1]'].includes(host)) {
-    fail(`BASE_URL (${BASE_URL}) n'est pas local : ce script n'est fait que pour le developpement.`);
-  }
-  if (!ADMIN_USER || !ADMIN_PASSWORD || !IMPORT_PASSWORD) {
-    fail('Definir ADMIN_USER, ADMIN_PASSWORD et IMPORT_PASSWORD (mot de passe commun des comptes imp_*, 4 caracteres min.).');
-  }
-}
 
 /** Lecteur CSV minimal : champs entre guillemets, "" pour un guillemet, retours a la ligne dans un champ. */
 function parseCsv(text) {
@@ -140,56 +133,6 @@ function wavDurationMs(buf) {
   return null;
 }
 
-class Api {
-  token = null;
-
-  async call(method, url, body, { form, allow = [] } = {}) {
-    const headers = {};
-    if (this.token) headers.Authorization = `Bearer ${this.token}`;
-    let payload;
-    if (form) {
-      payload = form;
-    } else if (body !== undefined) {
-      headers['Content-Type'] = 'application/json';
-      payload = JSON.stringify(body);
-    }
-    const res = await fetch(BASE_URL + url, { method, headers, body: payload });
-    const text = await res.text();
-    if (!res.ok && !allow.includes(res.status)) {
-      throw new Error(`${method} ${url} -> ${res.status} ${text.slice(0, 300)}`);
-    }
-    let json = null;
-    try {
-      json = text ? JSON.parse(text) : null;
-    } catch {
-      /* corps non JSON */
-    }
-    return { status: res.status, json };
-  }
-
-  async login(username, password) {
-    const { json } = await this.call('POST', '/api/authenticate', { username, password });
-    this.token = json.id_token;
-  }
-}
-
-/** Un compte = un client avec son propre jeton (les jetons durent 15 min : on se reconnecte par phase). */
-async function loggedIn(username, password) {
-  const api = new Api();
-  await api.login(username, password);
-  return api;
-}
-
-async function register(login, role) {
-  const { status } = await new Api().call(
-    'POST',
-    '/api/register',
-    { login, email: `${login}@example.test`, password: IMPORT_PASSWORD, langKey: 'fr', role, consentVersion: CONSENT_VERSION },
-    { allow: [400] },
-  );
-  console.log(`  compte ${login} (${role}) : ${status === 400 ? 'existe deja' : 'cree'}`);
-}
-
 // ---------------------------------------------------------------------------------------------------------------
 
 async function loadRows() {
@@ -212,51 +155,15 @@ async function loadRows() {
   return rows;
 }
 
-/**
- * Etape 7, relancable seule (--datasets-only) : cree les datasets manquants puis publie la version 1.0 de ceux qui n'en
- * ont pas encore (une version existante n'est jamais refaite : elle est immuable).
- */
-async function publishDatasets() {
-  console.log('\n7. Datasets et versions (admin)');
-  const admin = await loggedIn(ADMIN_USER, ADMIN_PASSWORD);
-  const language = (await admin.call('GET', '/api/languages')).json.find((l) => l.code === LANGUAGE);
-  if (!language) fail(`langue "${LANGUAGE}" introuvable en base.`);
-  const existing = (await admin.call('GET', '/api/datasets')).json;
-  for (const d of DATASETS) {
-    let dataset = existing.find((x) => x.slug === d.slug);
-    if (!dataset) {
-      dataset = (
-        await admin.call('POST', '/api/datasets', {
-          slug: d.slug,
-          title: d.title,
-          description: `Jeu de test (domaine ${d.domain}). Donnees importees localement, non publiables.`,
-          domain: d.domain,
-          plan: d.plan,
-          language: { id: language.id },
-        })
-      ).json;
-    }
-    const { status, json } = await admin.call(
-      'POST',
-      `/api/admin/datasets/${dataset.id}/versions`,
-      { label: '1.0', license: 'RESEARCH', pricePerHourFcfa: d.price ?? null, maxRecordings: d.max },
-      { allow: [400, 500] },
-    );
-    if (status === 400) {
-      console.log(`  ${d.slug} : version 1.0 deja publiee (ou refusee : ${json?.message ?? json?.detail ?? '?'})`);
-    } else if (status === 500) {
-      console.log(`  ${d.slug} : ECHEC de publication : ${json?.detail ?? 'erreur serveur'}`);
-    } else {
-      console.log(`  ${d.slug} (${d.plan}) : version 1.0, ${json.hours?.toFixed(3)} h, ${json.speakers} locuteur(s)`);
-    }
-  }
-}
+/** Etape 7, relancable seule (--datasets-only) : voir publishDatasets dans lib.mjs. */
+const publishAll = () =>
+  publishDatasets(DATASETS, LANGUAGE, (d) => `Jeu de test (domaine ${d.domain}). Donnees importees localement, non publiables.`);
 
 async function main() {
   checkSetup();
   console.log(`Serveur : ${BASE_URL}${DRY_RUN ? ' (--dry-run : rien n\'est ecrit)' : ''}`);
   if (process.argv.includes('--datasets-only')) {
-    await publishDatasets();
+    await publishAll();
     return;
   }
 
@@ -321,43 +228,12 @@ async function main() {
   }
 
   console.log('\n5. Qualification des validateurs');
-  for (const v of VALIDATORS) {
-    const api = await loggedIn(v, IMPORT_PASSWORD);
-    await api.call('POST', '/api/me/validation/qualifications', { languageCode: LANGUAGE }, { allow: [400, 409] });
-  }
-  const adminAgain = await loggedIn(ADMIN_USER, ADMIN_PASSWORD);
-  const pending = (await adminAgain.call('GET', '/api/admin/validation/qualifications')).json;
-  // Seulement nos 4 validateurs (le nom affiche d'un profil est son login) : jamais les demandes des autres comptes.
-  const ours = pending.filter((p) => p.languageCode === LANGUAGE && VALIDATORS.includes(p.displayName));
-  for (const q of ours) {
-    await adminAgain.call('POST', `/api/admin/validation/qualifications/${q.id}/decision`, { approve: true });
-  }
-  console.log(`  ${ours.length} qualification(s) acceptee(s) sur ${pending.length} en attente`);
+  await qualifyValidators(LANGUAGE);
 
   console.log('\n6. Relecture par les pairs (circuit normal ; les validateurs acceptent tout)');
-  let reviews = 0;
-  const clients = await Promise.all(VALIDATORS.map((v) => loggedIn(v, IMPORT_PASSWORD)));
-  let active = clients.map((api, i) => ({ api, name: VALIDATORS[i] }));
-  while (active.length > 0) {
-    const stillActive = [];
-    for (const v of active) {
-      const next = await v.api.call('GET', `/api/me/validation/next?language=${LANGUAGE}`);
-      if (next.status === 204 || !next.json) continue; // plus rien a relire pour ce validateur
-      await v.api.call('POST', '/api/me/validation/reviews', {
-        recordingId: next.json.recordingId,
-        verdict: 'ACCEPT',
-        audioOk: true,
-        pronunciationOk: true,
-        transcriptOk: true,
-      });
-      reviews++;
-      stillActive.push(v);
-    }
-    active = stillActive;
-  }
-  console.log(`  ${reviews} avis enregistres`);
+  await reviewEverything(LANGUAGE);
 
-  await publishDatasets();
+  await publishAll();
 
   console.log('\nTermine. Compte developpeur pour tester les modeles : imp_dev (mot de passe = IMPORT_PASSWORD).');
 }

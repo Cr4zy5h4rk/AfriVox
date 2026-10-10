@@ -52,5 +52,7 @@
     <include file="config/liquibase/changelog/20261009100000_model_other_datasets.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261010120000_model_sha256.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261010150000_test_reference.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261010170000_model_comment.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261010180000_community_extras.xml" relativeToChangelogFile="false"/>
     <!-- jhipster-needle-liquibase-add-incremental-changelog - JHipster will add incremental liquibase changelogs here -->
 </databaseChangeLog>

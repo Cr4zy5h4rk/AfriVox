@@ -7,5 +7,6 @@ public enum MlTask {
     ASR,
     TTS,
     INTENT,
+    CONVERSATION,
     OTHER,
 }

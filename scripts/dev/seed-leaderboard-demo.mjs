@@ -58,14 +58,24 @@ if (testSets.length === 0) throw new Error('aucun jeu de test sereer : la versio
 for (const s of testSets) console.log(`  ${s.slug} ${s.version} : ${s.sentences} phrases`);
 
 // Transcriptions reelles par identifiant d'enregistrement (CRUD admin ; le texte de reference n'est pas expose ailleurs).
+// Le CRUD des enregistrements ne donne que l'identifiant de la phrase : le texte vient de /api/prompts.
+const promptText = new Map();
+for (let page = 0; ; page++) {
+  const { json } = await admin.call('GET', `/api/prompts?page=${page}&size=500`);
+  if (!json || json.length === 0) break;
+  for (const p of json) promptText.set(p.id, p.content ?? '');
+  if (json.length < 500) break;
+}
 const transcripts = new Map();
 for (let page = 0; ; page++) {
   const { json } = await admin.call('GET', `/api/recordings?page=${page}&size=500`);
   if (!json || json.length === 0) break;
-  for (const r of json) transcripts.set(r.id, r.transcript ?? r.prompt?.content ?? '');
+  for (const r of json) transcripts.set(r.id, r.transcript ?? promptText.get(r.prompt?.id) ?? '');
   if (json.length < 500) break;
 }
-console.log(`  ${transcripts.size} transcriptions lues`);
+const withText = [...transcripts.values()].filter((t) => t.trim() !== '').length;
+console.log(`  ${transcripts.size} enregistrements, ${withText} avec un texte`);
+if (withText === 0) throw new Error('aucun texte de reference lu : arret (les scores seraient faux).');
 
 /** Generateur pseudo-aleatoire deterministe (le meme CSV a chaque lancement). */
 function rng(seed) {

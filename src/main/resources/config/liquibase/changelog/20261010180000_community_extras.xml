@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Communaute : reponses (un seul niveau), signalements et notifications. -->
+    <changeSet id="20261010180000-1" author="afrivox">
+        <addColumn tableName="model_comment">
+            <column name="parent_id" type="bigint"/>
+        </addColumn>
+        <addForeignKeyConstraint baseColumnNames="parent_id" baseTableName="model_comment"
+                                 constraintName="fk_model_comment__parent_id"
+                                 referencedColumnNames="id" referencedTableName="model_comment" onDelete="CASCADE"/>
+        <createIndex tableName="model_comment" indexName="idx_model_comment__parent_id">
+            <column name="parent_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20261010180000-2" author="afrivox">
+        <createTable tableName="comment_report">
+            <column name="id" type="bigint">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="comment_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reporter_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="details" type="varchar(300)"/>
+            <column name="created_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="resolved" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint baseColumnNames="comment_id" baseTableName="comment_report"
+                                 constraintName="fk_comment_report__comment_id"
+                                 referencedColumnNames="id" referencedTableName="model_comment" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseColumnNames="reporter_id" baseTableName="comment_report"
+                                 constraintName="fk_comment_report__reporter_id"
+                                 referencedColumnNames="id" referencedTableName="user_profile" onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="comment_report" columnNames="comment_id, reporter_id"
+                             constraintName="ux_comment_report__comment_reporter"/>
+    </changeSet>
+
+    <changeSet id="20261010180000-3" author="afrivox">
+        <createTable tableName="notification">
+            <column name="id" type="bigint">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="recipient_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type" type="varchar(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="actor_name" type="varchar(80)"/>
+            <column name="model_id" type="bigint"/>
+            <column name="model_name" type="varchar(120)"/>
+            <column name="created_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="read_at" type="${datetimeType}"/>
+        </createTable>
+        <addForeignKeyConstraint baseColumnNames="recipient_id" baseTableName="notification"
+                                 constraintName="fk_notification__recipient_id"
+                                 referencedColumnNames="id" referencedTableName="user_profile" onDelete="CASCADE"/>
+        <createIndex tableName="notification" indexName="idx_notification__recipient_created">
+            <column name="recipient_id"/>
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

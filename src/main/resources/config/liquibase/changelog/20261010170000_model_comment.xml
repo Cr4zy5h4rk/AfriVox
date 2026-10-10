@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Communaute : commentaires des utilisateurs sur la fiche d'un modele. Supprimes avec le modele. -->
+    <changeSet id="20261010170000-1" author="afrivox">
+        <createTable tableName="model_comment">
+            <column name="id" type="bigint">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="model_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="author_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="body" type="varchar(1000)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint baseColumnNames="model_id" baseTableName="model_comment"
+                                 constraintName="fk_model_comment__model_id"
+                                 referencedColumnNames="id" referencedTableName="ml_model" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseColumnNames="author_id" baseTableName="model_comment"
+                                 constraintName="fk_model_comment__author_id"
+                                 referencedColumnNames="id" referencedTableName="user_profile" onDelete="CASCADE"/>
+        <createIndex tableName="model_comment" indexName="idx_model_comment__model_created">
+            <column name="model_id"/>
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

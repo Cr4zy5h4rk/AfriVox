@@ -4,11 +4,13 @@ import com.afrivox.app.config.ApplicationProperties;
 import com.afrivox.app.domain.Dataset;
 import com.afrivox.app.domain.DatasetVersion;
 import com.afrivox.app.domain.Recording;
+import com.afrivox.app.domain.TestReference;
 import com.afrivox.app.domain.enumeration.LicenseKind;
 import com.afrivox.app.domain.enumeration.VersionStatus;
 import com.afrivox.app.repository.DatasetRepository;
 import com.afrivox.app.repository.DatasetVersionRepository;
 import com.afrivox.app.repository.RecordingRepository;
+import com.afrivox.app.repository.TestReferenceRepository;
 import com.afrivox.app.web.rest.errors.BadRequestAlertException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -75,7 +77,9 @@ public class DatasetPackagingService {
     /** Une ligne du manifeste : un enregistrement, son fichier dans l'archive et son locuteur pseudonymise. */
     private record Row(Recording recording, String name, String speaker, String text, Split split) {
         String line() {
-            return "%d\t%s\t%s\t%d\t%s\n".formatted(recording.getId(), name, speaker, durationMs(), text);
+            // Le texte du jeu de test n'est jamais publie : c'est la reponse du classement (gardee dans test_reference).
+            String published = split == Split.TEST ? "" : text;
+            return "%d\t%s\t%s\t%d\t%s\n".formatted(recording.getId(), name, speaker, durationMs(), published);
         }
 
         long durationMs() {
@@ -88,13 +92,16 @@ public class DatasetPackagingService {
     private final DatasetRepository datasetRepository;
     private final DatasetVersionRepository versionRepository;
     private final RecordingRepository recordingRepository;
+    private final TestReferenceRepository referenceRepository;
 
     public DatasetPackagingService(
         ApplicationProperties applicationProperties,
         DatasetRepository datasetRepository,
         DatasetVersionRepository versionRepository,
-        RecordingRepository recordingRepository
+        RecordingRepository recordingRepository,
+        TestReferenceRepository referenceRepository
     ) {
+        this.referenceRepository = referenceRepository;
         this.audioProperties = applicationProperties.getAudio();
         this.datasetProperties = applicationProperties.getDatasets();
         this.datasetRepository = datasetRepository;
@@ -166,7 +173,16 @@ public class DatasetPackagingService {
             recordings.size(),
             speakers
         );
-        return versionRepository.save(version);
+        DatasetVersion saved = versionRepository.save(version);
+        // Reponses du jeu de test : en base seulement, jamais dans l'archive.
+        referenceRepository.saveAll(
+            rows
+                .stream()
+                .filter(row -> row.split() == Split.TEST)
+                .map(row -> new TestReference(saved.getId(), row.recording().getId(), row.text()))
+                .toList()
+        );
+        return saved;
     }
 
     /**
@@ -351,6 +367,8 @@ public class DatasetPackagingService {
         sb.append("- `audio/` : un fichier par enregistrement\n");
         sb.append("- `manifest.tsv` : id, file, speaker, duration_ms, text (tabulations)\n");
         sb.append("- `splits/train.tsv`, `splits/dev.tsv`, `splits/test.tsv` : memes colonnes, par partie\n");
+        sb.append("- Le texte de la partie `test` est volontairement vide : ses transcriptions servent de reference au ");
+        sb.append("classement des modeles et ne sont pas publiees (le developpeur soumet ses predictions).\n");
         sb.append("- `LICENSE.txt` : conditions d'utilisation\n");
         sb.append("- `checksums.sha256` : empreinte de chaque fichier, verifiable avec `sha256sum -c checksums.sha256`\n\n");
 

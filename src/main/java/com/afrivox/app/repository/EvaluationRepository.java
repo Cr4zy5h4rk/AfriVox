@@ -22,10 +22,19 @@ public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
     @Query("select min(e.wer) from Evaluation e where e.model.id = :modelId")
     Float bestWer(@Param("modelId") Long modelId);
 
-    /** Classement : evaluations avec un WER, meilleures d'abord, filtrables par langue ('' = toutes). */
+    /** Derniere evaluation d'un modele sur un jeu de test (pour limiter la frequence des envois). */
+    Optional<Evaluation> findFirstByModelIdAndTestSetIdOrderBySubmittedAtDesc(Long modelId, Long testSetId);
+
+    /**
+     * Classement : la meilleure evaluation de chaque modele (une seule ligne par modele, a egalite la plus ancienne),
+     * meilleures d'abord, filtrable par langue ('' = toutes). L'historique complet est sur la fiche du modele.
+     */
     @Query(
         "select e from Evaluation e join fetch e.model m left join fetch m.language l " +
-            "where e.wer is not null and (:lang = '' or l.code = :lang) order by e.wer asc, e.submittedAt asc"
+            "where e.wer is not null and (:lang = '' or l.code = :lang) " +
+            "and e.id = (select min(e2.id) from Evaluation e2 where e2.model = e.model " +
+            "and e2.wer = (select min(e3.wer) from Evaluation e3 where e3.model = e.model)) " +
+            "order by e.wer asc, e.submittedAt asc"
     )
     List<Evaluation> leaderboard(@Param("lang") String languageCode, Pageable pageable);
 

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Transcriptions de reference du jeu de test d'une version : jamais dans l'archive (la colonne text de la partie
+        test y est vide), uniquement ici. Elles servent a calculer le WER des predictions soumises au classement.
+    -->
+    <changeSet id="20261010150000-1" author="afrivox">
+        <createTable tableName="test_reference">
+            <column name="id" type="bigint">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="version_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recording_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reference_text" type="varchar(1000)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint baseColumnNames="version_id" baseTableName="test_reference"
+                                 constraintName="fk_test_reference__version_id"
+                                 referencedColumnNames="id" referencedTableName="dataset_version" onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="test_reference" columnNames="version_id, recording_id"
+                             constraintName="ux_test_reference__version_recording"/>
+        <createIndex tableName="test_reference" indexName="idx_test_reference__version_id">
+            <column name="version_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

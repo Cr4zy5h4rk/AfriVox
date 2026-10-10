@@ -309,7 +309,14 @@ public class DatasetTechnicalService {
         long totalWords = 0;
         long totalChars = 0;
         Set<String> vocabulary = new HashSet<>();
+        // Le texte de la partie test est volontairement vide dans l'archive (reference du classement) : ces lignes
+        // ne comptent pas dans les moyennes de texte.
+        long textRows = 0;
         for (ManifestRow r : rows) {
+            if (r.text().isBlank()) {
+                continue;
+            }
+            textRows++;
             totalChars += r.text().codePointCount(0, r.text().length());
             for (String word : r.text().toLowerCase().split("\\s+")) {
                 if (!word.isBlank()) {
@@ -331,7 +338,9 @@ public class DatasetTechnicalService {
             median(perSpeakerSorted),
             perSpeakerSorted.get(perSpeakerSorted.size() - 1),
             histogram,
-            new TextStats((double) totalChars / rows.size(), (double) totalWords / rows.size(), totalWords, vocabulary.size())
+            textRows == 0
+                ? new TextStats(0, 0, 0, 0)
+                : new TextStats((double) totalChars / textRows, (double) totalWords / textRows, totalWords, vocabulary.size())
         );
     }
 

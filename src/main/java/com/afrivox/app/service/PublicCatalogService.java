@@ -343,8 +343,11 @@ public class PublicCatalogService {
             .findFirst()
             .map(PublicCatalogService::toVersionView)
             .orElse(null);
-        long recordings = language == null ? 0 : recordingRepository.countValidatedByLanguage(language.getId());
-        double hours = language == null ? 0 : recordingRepository.validatedDurationMsByLanguage(language.getId()) / MS_PER_HOUR;
+        // Chiffres du dataset : ceux de sa langue, restreints a son domaine s'il en a un (comme la publication d'une version).
+        String domain = d.getDomain() == null ? "" : d.getDomain().trim().toLowerCase();
+        long recordings = language == null ? 0 : recordingRepository.countValidatedByLanguageAndDomain(language.getId(), domain);
+        double hours =
+            language == null ? 0 : recordingRepository.validatedDurationMsByLanguageAndDomain(language.getId(), domain) / MS_PER_HOUR;
         return new DatasetSummary(
             d.getSlug(),
             d.getTitle(),

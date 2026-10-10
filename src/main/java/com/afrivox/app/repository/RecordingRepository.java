@@ -44,15 +44,35 @@ public interface RecordingRepository extends JpaRepository<Recording, Long> {
     long validatedDurationMsByLanguage(@Param("languageId") Long languageId);
 
     /**
-     * Enregistrements eligibles a un dataset : valides, de la langue demandee, et dont le contributeur a encore un
-     * consentement de collecte actif (un retrait de consentement exclut donc ses audios des versions suivantes).
+     * Comme {@link #countValidatedByLanguage} mais restreint au domaine des campagnes ({@code domain} en minuscules ;
+     * chaine vide = tous les domaines). Sert aux chiffres affiches pour un dataset qui a un domaine.
+     */
+    @Query(
+        "select count(r) from Recording r where r.status = com.afrivox.app.domain.enumeration.RecordingStatus.VALIDATED " +
+            "and r.prompt.campaign.language.id = :languageId " +
+            "and (:domain = '' or lower(r.prompt.campaign.domain) = :domain)"
+    )
+    long countValidatedByLanguageAndDomain(@Param("languageId") Long languageId, @Param("domain") String domain);
+
+    @Query(
+        "select coalesce(sum(r.durationMs), 0) from Recording r where r.status = com.afrivox.app.domain.enumeration.RecordingStatus.VALIDATED " +
+            "and r.prompt.campaign.language.id = :languageId " +
+            "and (:domain = '' or lower(r.prompt.campaign.domain) = :domain)"
+    )
+    long validatedDurationMsByLanguageAndDomain(@Param("languageId") Long languageId, @Param("domain") String domain);
+
+    /**
+     * Enregistrements eligibles a un dataset : valides, de la langue demandee, du domaine demande (chaine vide = tous
+     * les domaines), et dont le contributeur a encore un consentement de collecte actif (un retrait de consentement
+     * exclut donc ses audios des versions suivantes).
      */
     @Query(
         "select r from Recording r join fetch r.prompt p join fetch r.contributor where r.status = com.afrivox.app.domain.enumeration.RecordingStatus.VALIDATED " +
-            "and r.prompt.campaign.language.id = :languageId and exists (select c.id from Consent c where c.profile.id = r.contributor.id " +
+            "and r.prompt.campaign.language.id = :languageId and (:domain = '' or lower(r.prompt.campaign.domain) = :domain) " +
+            "and exists (select c.id from Consent c where c.profile.id = r.contributor.id " +
             "and c.kind = com.afrivox.app.domain.enumeration.ConsentKind.COLLECTION and c.revokedAt is null) order by r.id"
     )
-    List<Recording> findEligibleForDataset(@Param("languageId") Long languageId);
+    List<Recording> findEligibleForDataset(@Param("languageId") Long languageId, @Param("domain") String domain);
 
     /** Enregistrements a relire : envoyes, de la langue, pas les miens, pas deja relus par moi, pas encore assez relus. */
     @Query(

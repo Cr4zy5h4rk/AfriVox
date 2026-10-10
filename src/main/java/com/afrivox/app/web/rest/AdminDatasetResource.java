@@ -25,7 +25,9 @@ public class AdminDatasetResource {
     public record PublishRequest(
         @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9._-]{0,19}$") String label,
         @NotNull LicenseKind license,
-        @Min(0) Integer pricePerHourFcfa
+        @Min(0) Integer pricePerHourFcfa,
+        /** Taille maximale de la version (plan Starter = echantillon) ; vide = tous les enregistrements eligibles. */
+        @Min(1) Integer maxRecordings
     ) {}
 
     public record PublishedVersion(Long id, String label, Float hours, Integer speakers, String sha256) {}
@@ -39,7 +41,13 @@ public class AdminDatasetResource {
     @PostMapping("/{id}/versions")
     @ResponseStatus(HttpStatus.CREATED)
     public PublishedVersion publish(@PathVariable Long id, @Valid @RequestBody PublishRequest request) {
-        DatasetVersion v = packagingService.publish(id, request.label(), request.license(), request.pricePerHourFcfa());
+        DatasetVersion v = packagingService.publish(
+            id,
+            request.label(),
+            request.license(),
+            request.pricePerHourFcfa(),
+            request.maxRecordings()
+        );
         return new PublishedVersion(v.getId(), v.getLabel(), v.getHours(), v.getSpeakers(), v.getSha256());
     }
 }

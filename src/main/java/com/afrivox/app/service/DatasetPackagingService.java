@@ -102,7 +102,14 @@ public class DatasetPackagingService {
         this.recordingRepository = recordingRepository;
     }
 
-    public DatasetVersion publish(Long datasetId, String label, LicenseKind license, Integer pricePerHourFcfa) {
+    /**
+     * Publie une version figee du dataset.
+     *
+     * @param maxRecordings nombre maximal d'enregistrements retenus ({@code null} = tous). Les plans se distinguent par
+     *                      cette taille : un echantillon (Starter), un volume intermediaire (Plus), tout (Pro). Les
+     *                      paliers s'emboitent (voir {@link #takeNested}).
+     */
+    public DatasetVersion publish(Long datasetId, String label, LicenseKind license, Integer pricePerHourFcfa, Integer maxRecordings) {
         Dataset dataset = datasetRepository
             .findById(datasetId)
             .orElseThrow(() -> new BadRequestAlertException("Dataset introuvable", ENTITY_NAME, "datasetnotfound"));
@@ -112,10 +119,13 @@ public class DatasetPackagingService {
         if (versionRepository.existsByDatasetIdAndLabel(datasetId, label)) {
             throw new BadRequestAlertException("Ce numero de version existe deja", ENTITY_NAME, "versionexists");
         }
-        List<Recording> recordings = recordingRepository.findEligibleForDataset(dataset.getLanguage().getId());
-        if (recordings.isEmpty()) {
-            throw new BadRequestAlertException("Aucun enregistrement valide et consenti pour cette langue", ENTITY_NAME, "norecordings");
+        // Un dataset avec un domaine ne prend que les enregistrements des campagnes de ce domaine ; sans domaine, toute la langue.
+        String domain = dataset.getDomain() == null ? "" : dataset.getDomain().trim().toLowerCase();
+        List<Recording> eligible = recordingRepository.findEligibleForDataset(dataset.getLanguage().getId(), domain);
+        if (eligible.isEmpty()) {
+            throw new BadRequestAlertException("Aucun enregistrement valide et consenti pour ce dataset", ENTITY_NAME, "norecordings");
         }
+        List<Recording> recordings = takeNested(eligible, maxRecordings);
 
         Path root = Path.of(datasetProperties.getStorageDir()).toAbsolutePath().normalize();
         String relative = dataset.getSlug() + "/" + dataset.getSlug() + "-" + label + ".zip";
@@ -157,6 +167,31 @@ public class DatasetPackagingService {
             speakers
         );
         return versionRepository.save(version);
+    }
+
+    /**
+     * Retient au plus {@code max} enregistrements, en alternant entre les contributeurs (un de chacun, puis un
+     * deuxieme de chacun...) dans l'ordre des identifiants. L'ordre est stable : l'echantillon de N enregistrements est
+     * toujours le debut de celui de N+k, donc Starter &#8834; Plus &#8834; Pro tant que les donnees eligibles ne
+     * changent pas, et un echantillon n'est pas fait d'un seul locuteur.
+     */
+    static List<Recording> takeNested(List<Recording> eligible, Integer max) {
+        if (max == null || max >= eligible.size()) {
+            return eligible;
+        }
+        Map<Long, java.util.ArrayDeque<Recording>> byContributor = new LinkedHashMap<>();
+        for (Recording r : eligible) {
+            byContributor.computeIfAbsent(r.getContributor().getId(), id -> new java.util.ArrayDeque<>()).add(r);
+        }
+        List<Recording> picked = new ArrayList<>(max);
+        while (picked.size() < max) {
+            for (java.util.ArrayDeque<Recording> queue : byContributor.values()) {
+                if (!queue.isEmpty() && picked.size() < max) {
+                    picked.add(queue.poll());
+                }
+            }
+        }
+        return picked;
     }
 
     /**

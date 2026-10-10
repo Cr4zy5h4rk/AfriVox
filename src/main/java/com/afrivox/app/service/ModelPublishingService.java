@@ -33,6 +33,7 @@ public class ModelPublishingService {
         String description,
         String license,
         String url,
+        String sha256,
         String languageCode,
         Long trainedOnVersionId,
         List<Long> otherVersionIds
@@ -70,6 +71,7 @@ public class ModelPublishingService {
         model.setDescription(blankToNull(input.description()));
         model.setLicense(blankToNull(input.license()));
         model.setUrl(validateUrl(input.url()));
+        model.setSha256(validateSha256(input.sha256()));
         model.setDownloads(0);
         model.setCreatedAt(Instant.now());
         model.setOwner(owner);
@@ -145,6 +147,25 @@ public class ModelPublishingService {
         } catch (IllegalArgumentException e) {
             throw new BadRequestAlertException("Le lien doit etre une adresse https valide", ENTITY_NAME, "invalidurl");
         }
+    }
+
+    /**
+     * Empreinte facultative : 64 caracteres hexadecimaux, rangee en minuscules. La plateforme ne telecharge pas le
+     * fichier (elle ne stocke que des metadonnees) : l'empreinte est declarative, c'est le lecteur qui la verifie.
+     */
+    private static String validateSha256(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String hash = value.trim().toLowerCase();
+        if (!hash.matches("[0-9a-f]{64}")) {
+            throw new BadRequestAlertException(
+                "L'empreinte doit etre un SHA-256 (64 caracteres hexadecimaux)",
+                ENTITY_NAME,
+                "invalidsha256"
+            );
+        }
+        return hash;
     }
 
     private static String blankToNull(String value) {

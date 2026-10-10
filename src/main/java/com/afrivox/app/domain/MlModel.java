@@ -52,6 +52,11 @@ public class MlModel implements Serializable {
     @Column(name = "url", length = 300)
     private String url;
 
+    /** Empreinte SHA-256 (hex, 64 caracteres) du fichier du modele, declarative et facultative. */
+    @Size(max = 64)
+    @Column(name = "sha256", length = 64)
+    private String sha256;
+
     @Min(value = 0)
     @Column(name = "downloads")
     private Integer downloads;
@@ -162,6 +167,14 @@ public class MlModel implements Serializable {
 
     public void setUrl(String url) {
         this.url = url;
+    }
+
+    public String getSha256() {
+        return this.sha256;
+    }
+
+    public void setSha256(String sha256) {
+        this.sha256 = sha256;
     }
 
     public Integer getDownloads() {

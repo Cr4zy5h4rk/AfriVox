@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Empreinte SHA-256 facultative du fichier pointe par ml_model.url (detecter un contenu modifie). -->
+    <changeSet id="20261010120000-1" author="afrivox">
+        <addColumn tableName="ml_model">
+            <column name="sha256" type="varchar(64)"/>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

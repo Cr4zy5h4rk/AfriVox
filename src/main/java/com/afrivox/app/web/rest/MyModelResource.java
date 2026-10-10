@@ -31,6 +31,7 @@ public class MyModelResource {
         @Size(max = 1000) String description,
         @Size(max = 60) String license,
         @Size(max = 300) String url,
+        @Size(max = 64) String sha256,
         @Size(max = 10) String languageCode,
         Long trainedOnVersionId,
         @Size(max = 10) List<Long> otherVersionIds
@@ -55,6 +56,7 @@ public class MyModelResource {
             request.description(),
             request.license(),
             request.url(),
+            request.sha256(),
             request.languageCode(),
             request.trainedOnVersionId(),
             request.otherVersionIds()

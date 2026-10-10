@@ -13,7 +13,7 @@ import org.springframework.stereotype.Repository;
  * Spring Data JPA repository for the DatasetRequest entity.
  */
 @Repository
-public interface DatasetRequestRepository extends JpaRepository<DatasetRequest, Long> {
+public interface DatasetRequestRepository extends JpaRepository<DatasetRequest, Long>, JpaSpecificationExecutor<DatasetRequest> {
     default Optional<DatasetRequest> findOneWithEagerRelationships(Long id) {
         return this.findOneWithToOneRelationships(id);
     }

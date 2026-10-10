@@ -4,6 +4,7 @@ import com.afrivox.app.config.Constants;
 import com.afrivox.app.domain.User;
 import com.afrivox.app.repository.UserRepository;
 import com.afrivox.app.security.AuthoritiesConstants;
+import com.afrivox.app.security.SecurityUtils;
 import com.afrivox.app.service.MailService;
 import com.afrivox.app.service.UserService;
 import com.afrivox.app.service.dto.AdminUserDTO;
@@ -137,6 +138,13 @@ public class UserResource {
         @Valid @RequestBody AdminUserDTO userDTO
     ) {
         LOG.debug("REST request to update User : {}", userDTO);
+        // Un admin ne peut pas se désactiver ni se retirer le rôle admin : il se verrouillerait hors de l'administration
+        if (isCurrentUser(userDTO.getLogin())) {
+            boolean keepsAdmin = userDTO.getAuthorities() != null && userDTO.getAuthorities().contains(AuthoritiesConstants.ADMIN);
+            if (!userDTO.isActivated() || !keepsAdmin) {
+                throw new BadRequestAlertException("You cannot deactivate or demote your own account", "userManagement", "selfprotected");
+            }
+        }
         Optional<User> existingUser = userRepository.findOneByEmailIgnoreCase(userDTO.getEmail());
         if (existingUser.isPresent() && !existingUser.orElseThrow().getId().equals(userDTO.getId())) {
             throw new EmailAlreadyUsedException();
@@ -161,15 +169,25 @@ public class UserResource {
      */
     @GetMapping("/users")
     @PreAuthorize("hasAuthority(\"" + AuthoritiesConstants.ADMIN + "\")")
-    public ResponseEntity<List<AdminUserDTO>> getAllUsers(@org.springdoc.core.annotations.ParameterObject Pageable pageable) {
+    public ResponseEntity<List<AdminUserDTO>> getAllUsers(
+        @org.springdoc.core.annotations.ParameterObject Pageable pageable,
+        @RequestParam(name = "q", required = false) String query,
+        @RequestParam(name = "role", required = false) String role,
+        @RequestParam(name = "activated", required = false) Boolean activated,
+        @RequestParam(name = "excludeTest", defaultValue = "false") boolean excludeTest
+    ) {
         LOG.debug("REST request to get all User for an admin");
         if (!onlyContainsAllowedProperties(pageable)) {
             return ResponseEntity.badRequest().build();
         }
 
-        final Page<AdminUserDTO> page = userService.getAllManagedUsers(pageable);
+        final Page<AdminUserDTO> page = userService.searchManagedUsers(query, role, activated, excludeTest, pageable);
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return new ResponseEntity<>(page.getContent(), headers, HttpStatus.OK);
+    }
+
+    private static boolean isCurrentUser(String login) {
+        return login != null && SecurityUtils.getCurrentUserLogin().filter(login::equalsIgnoreCase).isPresent();
     }
 
     private boolean onlyContainsAllowedProperties(Pageable pageable) {
@@ -199,6 +217,9 @@ public class UserResource {
     @PreAuthorize("hasAuthority(\"" + AuthoritiesConstants.ADMIN + "\")")
     public ResponseEntity<Void> deleteUser(@PathVariable("login") @Pattern(regexp = Constants.LOGIN_REGEX) String login) {
         LOG.debug("REST request to delete User: {}", login);
+        if (isCurrentUser(login)) {
+            throw new BadRequestAlertException("You cannot delete your own account", "userManagement", "selfprotected");
+        }
         userService.deleteUser(login);
         return ResponseEntity.noContent()
             .headers(HeaderUtil.createAlert(applicationName, "userManagement.deleted", login))

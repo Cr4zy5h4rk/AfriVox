@@ -13,7 +13,7 @@ import org.springframework.stereotype.Repository;
  * Spring Data JPA repository for the Campaign entity.
  */
 @Repository
-public interface CampaignRepository extends JpaRepository<Campaign, Long> {
+public interface CampaignRepository extends JpaRepository<Campaign, Long>, JpaSpecificationExecutor<Campaign> {
     /** Campagnes ouvertes aux contributeurs : actives et ni privees (reservees a une organisation). */
     @Query(
         "select campaign from Campaign campaign left join fetch campaign.language " +

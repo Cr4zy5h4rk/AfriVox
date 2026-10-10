@@ -14,6 +14,10 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface PromptRepository extends JpaRepository<Prompt, Long> {
+    /** Nombre de phrases par campagne : lignes {@code [campaignId, nombre]}. */
+    @Query("select p.campaign.id, count(p) from Prompt p where p.campaign.id in :ids group by p.campaign.id")
+    List<Object[]> countByCampaign(@Param("ids") java.util.Collection<Long> ids);
+
     /** Nombre de phrases d'une campagne. */
     long countByCampaignId(Long campaignId);
 

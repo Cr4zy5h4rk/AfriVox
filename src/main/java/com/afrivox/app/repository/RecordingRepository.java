@@ -14,6 +14,13 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface RecordingRepository extends JpaRepository<Recording, Long> {
+    /** Enregistrements par campagne et par etat : lignes {@code [campaignId, status, nombre]}. */
+    @Query(
+        "select r.prompt.campaign.id, r.status, count(r) from Recording r " +
+            "where r.prompt.campaign.id in :ids group by r.prompt.campaign.id, r.status"
+    )
+    List<Object[]> countByCampaignAndStatus(@Param("ids") java.util.Collection<Long> ids);
+
     long countByStatus(com.afrivox.app.domain.enumeration.RecordingStatus status);
 
     /** Duree totale des enregistrements valides, en millisecondes. */

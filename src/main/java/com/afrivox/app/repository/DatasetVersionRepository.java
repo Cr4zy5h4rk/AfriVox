@@ -43,6 +43,13 @@ public interface DatasetVersionRepository extends DatasetVersionRepositoryWithBa
 
     boolean existsByDatasetIdAndLabel(Long datasetId, String label);
 
+    /** Toutes les versions (quel que soit l'etat) de ces datasets, recentes d'abord : vue d'administration. */
+    List<DatasetVersion> findAllByDatasetIdInOrderByCreatedAtDesc(java.util.Collection<Long> datasetIds);
+
+    /** Nombre d'enregistrements figes dans chaque version : lignes {@code [versionId, nombre]}. */
+    @Query("select v.id, count(r) from DatasetVersion v join v.recordings r where v.id in :ids group by v.id")
+    List<Object[]> countRecordingsByVersion(@Param("ids") java.util.Collection<Long> ids);
+
     /** Nombre de datasets ayant au moins une version publiee. */
     @Query(
         "select count(distinct v.dataset.id) from DatasetVersion v " +

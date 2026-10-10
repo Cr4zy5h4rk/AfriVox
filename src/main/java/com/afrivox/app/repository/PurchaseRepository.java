@@ -24,5 +24,9 @@ public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
     )
     Optional<Purchase> findOneByIdAndProfile(@Param("id") Long id, @Param("profileId") Long profileId);
 
+    /** Nombre d'achats par version : lignes {@code [versionId, nombre]}. */
+    @Query("select p.datasetVersion.id, count(p) from Purchase p where p.datasetVersion.id in :ids group by p.datasetVersion.id")
+    List<Object[]> countByVersion(@Param("ids") java.util.Collection<Long> ids);
+
     boolean existsByProfileIdAndDatasetVersionIdAndLicense(Long profileId, Long datasetVersionId, LicenseKind license);
 }

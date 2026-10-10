@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,9 @@ import tech.jhipster.security.RandomUtil;
 public class UserService {
 
     private static final Logger LOG = LoggerFactory.getLogger(UserService.class);
+
+    /** Préfixe des comptes créés par les scripts d'import de données de test (scripts/dev). */
+    public static final String TEST_ACCOUNT_PREFIX = "imp_";
 
     private static final Set<String> REGISTRABLE_ROLES = Set.of(
         AuthoritiesConstants.CONTRIBUTOR,
@@ -218,8 +222,13 @@ public class UserService {
                     user.setEmail(userDTO.getEmail().toLowerCase());
                 }
                 user.setImageUrl(userDTO.getImageUrl());
+                boolean wasActivated = user.isActivated();
                 user.setActivated(userDTO.isActivated());
                 user.setLangKey(userDTO.getLangKey());
+                // Compte désactivé : il ne doit plus pouvoir renouveler son jeton d'accès (le jeton court expire seul)
+                if (wasActivated && !userDTO.isActivated()) {
+                    refreshTokenRepository.revokeAllByUserId(user.getId());
+                }
                 Set<Authority> managedAuthorities = user.getAuthorities();
                 managedAuthorities.clear();
                 userDTO
@@ -287,6 +296,43 @@ public class UserService {
     @Transactional(readOnly = true)
     public Page<AdminUserDTO> getAllManagedUsers(Pageable pageable) {
         return userRepository.findAll(pageable).map(AdminUserDTO::new);
+    }
+
+    /**
+     * Liste filtrée pour l'administration. Tous les critères sont facultatifs et se cumulent :
+     * texte (identifiant ou e-mail), rôle, état d'activation, exclusion des comptes de test.
+     * Les comptes de test sont ceux des scripts d'import, préfixés {@value #TEST_ACCOUNT_PREFIX}.
+     */
+    @Transactional(readOnly = true)
+    public Page<AdminUserDTO> searchManagedUsers(
+        String query,
+        String role,
+        Boolean activated,
+        boolean excludeTestAccounts,
+        Pageable pageable
+    ) {
+        Specification<User> spec = (root, q, cb) -> cb.conjunction();
+        if (query != null && !query.isBlank()) {
+            String like = "%" + escapeLike(query.trim().toLowerCase()) + "%";
+            spec = spec.and((root, q, cb) ->
+                cb.or(cb.like(cb.lower(root.get("login")), like, '\\'), cb.like(cb.lower(root.get("email")), like, '\\'))
+            );
+        }
+        if (role != null && !role.isBlank()) {
+            spec = spec.and((root, q, cb) -> cb.equal(root.join("authorities").get("name"), role));
+        }
+        if (activated != null) {
+            spec = spec.and((root, q, cb) -> cb.equal(root.get("activated"), activated));
+        }
+        if (excludeTestAccounts) {
+            spec = spec.and((root, q, cb) -> cb.not(cb.like(cb.lower(root.get("login")), escapeLike(TEST_ACCOUNT_PREFIX) + "%", '\\')));
+        }
+        return userRepository.findAll(spec, pageable).map(AdminUserDTO::new);
+    }
+
+    /** Les caractères % et _ saisis par l'admin sont cherchés tels quels, pas comme jokers. */
+    private static String escapeLike(String text) {
+        return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     @Transactional(readOnly = true)

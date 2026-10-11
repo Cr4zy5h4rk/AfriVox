@@ -33,6 +33,7 @@ import {
   fail,
   loggedIn,
   publishDatasets,
+  completeTestProfile,
   promoteTestContributor,
   qualifyValidators,
   register,
@@ -270,6 +271,7 @@ async function main() {
         const api = await loggedIn(login, IMPORT_PASSWORD);
         if (!session) {
           await api.call('POST', '/api/consents', { kind: 'COLLECTION' }, { allow: [400, 409] });
+          await completeTestProfile(api);
           await promoteTestContributor(login);
         }
         session = { api, at: Date.now() };

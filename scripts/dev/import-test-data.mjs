@@ -39,6 +39,7 @@ import {
   fail,
   loggedIn,
   publishDatasets,
+  completeTestProfile,
   promoteTestContributor,
   qualifyValidators,
   register,
@@ -216,6 +217,7 @@ async function main() {
   for (const [source, list] of Object.entries(bySource)) {
     const user = await loggedIn(`imp_${source}`, IMPORT_PASSWORD);
     await user.call('POST', '/api/consents', { kind: 'COLLECTION' }, { allow: [400, 409] });
+    await completeTestProfile(user);
     await promoteTestContributor(`imp_${source}`);
     let sent = 0;
     for (const r of list) {

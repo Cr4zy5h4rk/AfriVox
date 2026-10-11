@@ -114,6 +114,20 @@ export async function promoteTestContributor(login) {
   }
 }
 
+/**
+ * Le questionnaire du contributeur (age, genre, pays, region) est obligatoire pour enregistrer. Les comptes de test le
+ * remplissent avec des valeurs visiblement factices (pays « Test ») : ce sont des donnees de test, jamais a publier.
+ */
+export async function completeTestProfile(api) {
+  await api.call('PUT', '/api/me/contributor/profile', {
+    ageRange: 'R26_35',
+    gender: 'OTHER',
+    country: 'Test',
+    region: 'test',
+    otherLanguages: [],
+  });
+}
+
 /** Demande la qualification de nos validateurs pour une langue, puis l'accepte (jamais celles des autres comptes). */
 export async function qualifyValidators(languageCode) {
   for (const v of VALIDATORS) {

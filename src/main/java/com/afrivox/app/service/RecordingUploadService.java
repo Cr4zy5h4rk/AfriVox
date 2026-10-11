@@ -102,6 +102,10 @@ public class RecordingUploadService {
         }
 
         UserProfile profile = userProfileService.getOrCreateCurrent();
+        // Le questionnaire (age, genre, pays, region) est obligatoire avant le premier envoi.
+        if (!ContributorProfileService.isComplete(profile)) {
+            throw new BadRequestAlertException("Profil contributeur incomplet", ENTITY_NAME, "profileincomplete");
+        }
         // Periode d'essai : plafond d'envois, ou compte suspendu.
         trialService.assertCanUpload(profile);
         // Pas d'enregistrement sans consentement de collecte encore actif (un retrait est donc respecte).

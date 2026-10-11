@@ -29,9 +29,12 @@ public class ContributorProfileService {
 
     static final int MAX_OTHER_LANGUAGES = 8;
 
-    /** Ce que le contributeur a declare. {@code answered} : le questionnaire a ete rempli ou passe. */
+    /**
+     * Ce que le contributeur a declare. {@code complete} : tranche d'age, genre, pays et region sont renseignes ;
+     * tant que ce n'est pas le cas, il ne peut pas enregistrer.
+     */
     public record ProfileView(
-        boolean answered,
+        boolean complete,
         String nativeLanguage,
         AgeRange ageRange,
         Gender gender,
@@ -40,7 +43,7 @@ public class ContributorProfileService {
         List<String> otherLanguages
     ) {}
 
-    /** Reponses envoyees ; toute valeur absente est simplement non declaree. */
+    /** Reponses envoyees. Age, genre, pays et region sont obligatoires ; les autres langues sont facultatives. */
     public record ProfileInput(
         AgeRange ageRange,
         Gender gender,
@@ -67,8 +70,24 @@ public class ContributorProfileService {
         return toView(userProfileService.getOrCreateCurrent());
     }
 
-    /** Remplace les reponses : une valeur absente efface la precedente (le contributeur peut tout retirer). */
+    /** Vrai si les informations obligatoires sont toutes renseignees. */
+    public static boolean isComplete(UserProfile p) {
+        return (
+            p.getDemographicsAnsweredAt() != null &&
+            p.getAgeRange() != null &&
+            p.getGender() != null &&
+            p.getCountry() != null &&
+            !p.getCountry().isBlank() &&
+            p.getRegion() != null &&
+            !p.getRegion().isBlank()
+        );
+    }
+
+    /** Remplace les reponses. Les quatre informations obligatoires doivent etre presentes (400 {@code profileincomplete}). */
     public ProfileView save(ProfileInput input) {
+        if (input.ageRange() == null || input.gender() == null || clean(input.country()) == null || clean(input.region()) == null) {
+            throw new BadRequestAlertException("Informations obligatoires manquantes", ENTITY_NAME, "profileincomplete");
+        }
         UserProfile profile = userProfileService.getOrCreateCurrent();
         profile.setAgeRange(input.ageRange());
         profile.setGender(input.gender());
@@ -108,14 +127,6 @@ public class ContributorProfileService {
     private static ProfileView toView(UserProfile p) {
         List<String> others =
             p.getOtherLanguages() == null || p.getOtherLanguages().isBlank() ? List.of() : Arrays.asList(p.getOtherLanguages().split(","));
-        return new ProfileView(
-            p.getDemographicsAnsweredAt() != null,
-            p.getNativeLanguage(),
-            p.getAgeRange(),
-            p.getGender(),
-            p.getCountry(),
-            p.getRegion(),
-            others
-        );
+        return new ProfileView(isComplete(p), p.getNativeLanguage(), p.getAgeRange(), p.getGender(), p.getCountry(), p.getRegion(), others);
     }
 }

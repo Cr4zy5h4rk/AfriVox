@@ -50,6 +50,37 @@ public class UserProfile implements Serializable {
     private com.afrivox.app.domain.enumeration.ContributorStatus contributorStatus =
         com.afrivox.app.domain.enumeration.ContributorStatus.ACTIVE;
 
+    /** Date de la confirmation « j'ai 18 ans ou plus » faite a l'inscription (vide pour les profils plus anciens). */
+    @Column(name = "adult_confirmed_at")
+    private Instant adultConfirmedAt;
+
+    /** Code d'une langue du catalogue, ou {@code other}. Declaratif. */
+    @Size(max = 20)
+    @Column(name = "native_language", length = 20)
+    private String nativeLanguage;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "age_range", length = 10)
+    private com.afrivox.app.domain.enumeration.AgeRange ageRange;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "gender", length = 10)
+    private com.afrivox.app.domain.enumeration.Gender gender;
+
+    /** Region ou ville d'origine, texte libre : jamais publie, sert seulement a l'equipe. */
+    @Size(max = 60)
+    @Column(name = "region", length = 60)
+    private String region;
+
+    /** Codes de langues separes par des virgules. */
+    @Size(max = 120)
+    @Column(name = "other_languages", length = 120)
+    private String otherLanguages;
+
+    /** Renseigne quand le contributeur a repondu (ou passe) le questionnaire : il n'est alors plus propose. */
+    @Column(name = "demographics_answered_at")
+    private Instant demographicsAnsweredAt;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(unique = true)
     private User user;
@@ -119,6 +150,62 @@ public class UserProfile implements Serializable {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Instant getAdultConfirmedAt() {
+        return adultConfirmedAt;
+    }
+
+    public void setAdultConfirmedAt(Instant adultConfirmedAt) {
+        this.adultConfirmedAt = adultConfirmedAt;
+    }
+
+    public String getNativeLanguage() {
+        return nativeLanguage;
+    }
+
+    public void setNativeLanguage(String nativeLanguage) {
+        this.nativeLanguage = nativeLanguage;
+    }
+
+    public com.afrivox.app.domain.enumeration.AgeRange getAgeRange() {
+        return ageRange;
+    }
+
+    public void setAgeRange(com.afrivox.app.domain.enumeration.AgeRange ageRange) {
+        this.ageRange = ageRange;
+    }
+
+    public com.afrivox.app.domain.enumeration.Gender getGender() {
+        return gender;
+    }
+
+    public void setGender(com.afrivox.app.domain.enumeration.Gender gender) {
+        this.gender = gender;
+    }
+
+    public String getRegion() {
+        return region;
+    }
+
+    public void setRegion(String region) {
+        this.region = region;
+    }
+
+    public String getOtherLanguages() {
+        return otherLanguages;
+    }
+
+    public void setOtherLanguages(String otherLanguages) {
+        this.otherLanguages = otherLanguages;
+    }
+
+    public Instant getDemographicsAnsweredAt() {
+        return demographicsAnsweredAt;
+    }
+
+    public void setDemographicsAnsweredAt(Instant demographicsAnsweredAt) {
+        this.demographicsAnsweredAt = demographicsAnsweredAt;
     }
 
     public com.afrivox.app.domain.enumeration.ContributorStatus getContributorStatus() {

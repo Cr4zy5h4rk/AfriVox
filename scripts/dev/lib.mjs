@@ -75,7 +75,17 @@ export async function register(login, role, { quiet = false } = {}) {
   const { status } = await new Api().call(
     'POST',
     '/api/register',
-    { login, email: `${login}@example.test`, password: IMPORT_PASSWORD, langKey: 'fr', role, consentVersion: CONSENT_VERSION },
+    {
+      login,
+      email: `${login}@example.test`,
+      password: IMPORT_PASSWORD,
+      langKey: 'fr',
+      role,
+      consentVersion: CONSENT_VERSION,
+      // Un contributeur confirme sa majorite et declare sa langue maternelle ; "other" convient aux comptes de test.
+      adult: true,
+      nativeLanguage: 'other',
+    },
     { allow: [400] },
   );
   if (!quiet) console.log(`  compte ${login} (${role}) : ${status === 400 ? 'existe deja' : 'cree'}`);

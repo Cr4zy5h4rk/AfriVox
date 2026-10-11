@@ -53,7 +53,7 @@ public class SecurityConfiguration {
                     // Mes consentements : le service ne lit et ne modifie que ceux de l'utilisateur connecté.
                     .requestMatchers("/api/consents/**").authenticated()
                     // Envoi d'audio : contributeurs (et admin). Chaque utilisateur ne voit que ses enregistrements.
-                    .requestMatchers("/api/me/recordings/**", "/api/me/campaigns/**", "/api/me/contributor").hasAnyAuthority(AuthoritiesConstants.CONTRIBUTOR, AuthoritiesConstants.ADMIN)
+                    .requestMatchers("/api/me/recordings/**", "/api/me/campaigns/**", "/api/me/contributor/**").hasAnyAuthority(AuthoritiesConstants.CONTRIBUTOR, AuthoritiesConstants.ADMIN)
                     // Publication de modèles : développeurs (et admin). Chacun ne gère que les siens.
                     .requestMatchers("/api/me/models/**").hasAnyAuthority(AuthoritiesConstants.DEVELOPER, AuthoritiesConstants.ADMIN)
                     // Validation par les pairs : contributeurs (et admin). Le service exige en plus une qualification dans la langue.

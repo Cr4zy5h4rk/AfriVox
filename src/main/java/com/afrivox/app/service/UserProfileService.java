@@ -56,35 +56,70 @@ public class UserProfileService {
      * @return the persisted entity.
      */
     /**
-     * Profil de l'utilisateur connecte. Il est cree au premier usage (le nom affiche est le login, modifiable plus
-     * tard) : l'inscription ne cree que le compte.
+     * Profil de l'utilisateur connecte. Un contributeur a deja le sien (cree a l'inscription, avec sa majorite et sa
+     * langue maternelle) ; pour les autres roles il est cree au premier usage, le nom affiche etant le login.
      */
     public UserProfile getOrCreateCurrent() {
         String login = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new IllegalStateException("Aucun utilisateur connecte"));
         return userProfileRepository.findOneByUserLogin(login).orElseGet(() -> {
             User user = userRepository.findOneByLogin(login).orElseThrow(() -> new IllegalStateException("Compte introuvable"));
-            UserProfile profile = new UserProfile();
-            profile.setDisplayName(login.length() > 80 ? login.substring(0, 80) : login);
-            profile.setCreatedAt(Instant.now());
-            profile.setUser(user);
-            // Un compte contributeur commence en periode d'essai (si elle est activee) ; les autres roles ne sont pas concernes.
-            boolean contributor = user
-                .getAuthorities()
-                .stream()
-                .anyMatch(a -> AuthoritiesConstants.CONTRIBUTOR.equals(a.getName()));
-            if (contributor && applicationProperties.getContributorTrial().isEnabled()) {
-                profile.setContributorStatus(ContributorStatus.TRIAL);
-            }
-            return userProfileRepository.save(profile);
+            return create(user, null, null);
         });
+    }
+
+    /**
+     * Cree le profil d'un compte. Un compte contributeur commence en periode d'essai (si elle est activee) ; les autres
+     * roles ne sont pas concernes.
+     *
+     * @param nativeLanguage code de langue declare a l'inscription (deja valide par l'appelant), ou {@code null}
+     * @param adultConfirmedAt moment de la confirmation de majorite, ou {@code null}
+     */
+    public UserProfile create(User user, String nativeLanguage, Instant adultConfirmedAt) {
+        String login = user.getLogin();
+        UserProfile profile = new UserProfile();
+        profile.setDisplayName(login.length() > 80 ? login.substring(0, 80) : login);
+        profile.setCreatedAt(Instant.now());
+        profile.setUser(user);
+        profile.setNativeLanguage(nativeLanguage);
+        profile.setAdultConfirmedAt(adultConfirmedAt);
+        boolean contributor = user
+            .getAuthorities()
+            .stream()
+            .anyMatch(a -> AuthoritiesConstants.CONTRIBUTOR.equals(a.getName()));
+        if (contributor && applicationProperties.getContributorTrial().isEnabled()) {
+            profile.setContributorStatus(ContributorStatus.TRIAL);
+        }
+        return userProfileRepository.save(profile);
+    }
+
+    /**
+     * Les champs geres par le serveur (periode d'essai, majorite, informations declarees) ne figurent pas tous dans le
+     * DTO du CRUD genere : un PUT ne doit donc pas les remettre a zero, on garde ceux de la base.
+     */
+    private void keepServerManaged(UserProfile target) {
+        if (target.getId() != null) {
+            userProfileRepository.findById(target.getId()).ifPresent(existing -> {
+                if (target.getContributorStatus() == null) {
+                    target.setContributorStatus(existing.getContributorStatus());
+                }
+                target.setAdultConfirmedAt(existing.getAdultConfirmedAt());
+                target.setNativeLanguage(existing.getNativeLanguage());
+                target.setAgeRange(existing.getAgeRange());
+                target.setGender(existing.getGender());
+                target.setRegion(existing.getRegion());
+                target.setOtherLanguages(existing.getOtherLanguages());
+                target.setDemographicsAnsweredAt(existing.getDemographicsAnsweredAt());
+            });
+        }
+        if (target.getContributorStatus() == null) {
+            target.setContributorStatus(ContributorStatus.ACTIVE);
+        }
     }
 
     public UserProfileDTO save(UserProfileDTO userProfileDTO) {
         LOG.debug("Request to save UserProfile : {}", userProfileDTO);
         UserProfile userProfile = userProfileMapper.toEntity(userProfileDTO);
-        if (userProfile.getContributorStatus() == null) {
-            userProfile.setContributorStatus(ContributorStatus.ACTIVE);
-        }
+        keepServerManaged(userProfile);
         userProfile = userProfileRepository.save(userProfile);
         return userProfileMapper.toDto(userProfile);
     }
@@ -98,15 +133,7 @@ public class UserProfileService {
     public UserProfileDTO update(UserProfileDTO userProfileDTO) {
         LOG.debug("Request to update UserProfile : {}", userProfileDTO);
         UserProfile userProfile = userProfileMapper.toEntity(userProfileDTO);
-        if (userProfile.getContributorStatus() == null) {
-            // Un PUT qui n'envoie pas le statut ne doit pas le remettre a zero : on garde celui de la base.
-            userProfile.setContributorStatus(
-                userProfileRepository
-                    .findById(userProfileDTO.getId())
-                    .map(UserProfile::getContributorStatus)
-                    .orElse(ContributorStatus.ACTIVE)
-            );
-        }
+        keepServerManaged(userProfile);
         userProfile = userProfileRepository.save(userProfile);
         return userProfileMapper.toDto(userProfile);
     }

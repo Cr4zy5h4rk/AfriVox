@@ -24,6 +24,14 @@ public class ManagedUserVM extends AdminUserDTO {
     @Size(max = 32)
     private String consentVersion;
 
+    /** Confirmation « j'ai 18 ans ou plus » (obligatoire pour un contributeur). */
+    private Boolean adult;
+
+    /** Code de la langue maternelle, ou {@code other} (obligatoire pour un contributeur). */
+    @Size(max = 20)
+    @Pattern(regexp = "[A-Za-z0-9_-]*")
+    private String nativeLanguage;
+
     public ManagedUserVM() {
         // Empty constructor needed for Jackson.
     }
@@ -42,6 +50,22 @@ public class ManagedUserVM extends AdminUserDTO {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public Boolean getAdult() {
+        return adult;
+    }
+
+    public void setAdult(Boolean adult) {
+        this.adult = adult;
+    }
+
+    public String getNativeLanguage() {
+        return nativeLanguage;
+    }
+
+    public void setNativeLanguage(String nativeLanguage) {
+        this.nativeLanguage = nativeLanguage;
     }
 
     public String getConsentVersion() {

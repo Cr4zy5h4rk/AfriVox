@@ -6,12 +6,15 @@ import com.afrivox.app.domain.Authority;
 import com.afrivox.app.domain.User;
 import com.afrivox.app.domain.UserConsent;
 import com.afrivox.app.repository.AuthorityRepository;
+import com.afrivox.app.repository.LanguageRepository;
 import com.afrivox.app.repository.RefreshTokenRepository;
 import com.afrivox.app.repository.UserConsentRepository;
+import com.afrivox.app.repository.UserProfileRepository;
 import com.afrivox.app.repository.UserRepository;
 import com.afrivox.app.security.AuthoritiesConstants;
 import com.afrivox.app.security.SecurityUtils;
 import com.afrivox.app.service.dto.AdminUserDTO;
+import com.afrivox.app.web.rest.errors.BadRequestAlertException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -39,6 +42,9 @@ public class UserService {
     /** Préfixe des comptes créés par les scripts d'import de données de test (scripts/dev). */
     public static final String TEST_ACCOUNT_PREFIX = "imp_";
 
+    /** Valeur de langue maternelle pour une langue absente du catalogue. */
+    public static final String OTHER_LANGUAGE = "other";
+
     private static final Set<String> REGISTRABLE_ROLES = Set.of(
         AuthoritiesConstants.CONTRIBUTOR,
         AuthoritiesConstants.DEVELOPER,
@@ -57,14 +63,26 @@ public class UserService {
 
     private final UserConsentRepository userConsentRepository;
 
+    private final LanguageRepository languageRepository;
+
+    private final UserProfileRepository userProfileRepository;
+
+    private final UserProfileService userProfileService;
+
     public UserService(
         UserRepository userRepository,
         PasswordEncoder passwordEncoder,
         AuthorityRepository authorityRepository,
         ApplicationProperties applicationProperties,
         RefreshTokenRepository refreshTokenRepository,
-        UserConsentRepository userConsentRepository
+        UserConsentRepository userConsentRepository,
+        LanguageRepository languageRepository,
+        UserProfileRepository userProfileRepository,
+        UserProfileService userProfileService
     ) {
+        this.languageRepository = languageRepository;
+        this.userProfileRepository = userProfileRepository;
+        this.userProfileService = userProfileService;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authorityRepository = authorityRepository;
@@ -113,7 +131,27 @@ public class UserService {
      * Inscription publique : le compte recoit ROLE_USER et le role choisi (contributeur, developpeur ou organisation),
      * et le consentement a la version indiquee est enregistre dans la meme transaction.
      */
-    public User registerUser(AdminUserDTO userDTO, String password, String roleAuthority, String consentVersion) {
+    public User registerUser(
+        AdminUserDTO userDTO,
+        String password,
+        String roleAuthority,
+        String consentVersion,
+        boolean adult,
+        String nativeLanguage
+    ) {
+        boolean contributor = AuthoritiesConstants.CONTRIBUTOR.equals(roleAuthority);
+        if (contributor) {
+            // Un contributeur confirme sa majorite (consentement valable pour sa voix) et declare sa langue maternelle.
+            if (!adult) {
+                throw new BadRequestAlertException("La majorite doit etre confirmee", "account", "adultrequired");
+            }
+            if (nativeLanguage == null || nativeLanguage.isBlank()) {
+                throw new BadRequestAlertException("La langue maternelle est requise", "account", "nativelanguagerequired");
+            }
+            if (!OTHER_LANGUAGE.equals(nativeLanguage) && languageRepository.findOneByCode(nativeLanguage).isEmpty()) {
+                throw new BadRequestAlertException("Langue inconnue", "account", "invalidlanguage");
+            }
+        }
         userRepository.findOneByLogin(userDTO.getLogin().toLowerCase()).ifPresent(existingUser -> {
             boolean removed = removeNonActivatedUser(existingUser);
             if (!removed) {
@@ -157,6 +195,9 @@ public class UserService {
         consent.setUser(newUser);
         consent.setVersion(consentVersion);
         userConsentRepository.save(consent);
+        if (contributor) {
+            userProfileService.create(newUser, nativeLanguage, Instant.now());
+        }
         LOG.debug("Created Information for User: {}", newUser);
         return newUser;
     }
@@ -165,6 +206,9 @@ public class UserService {
         if (existingUser.isActivated()) {
             return false;
         }
+        // Le profil (cree a l'inscription d'un contributeur) reference le compte : il part en premier.
+        userProfileRepository.findOneByUserLogin(existingUser.getLogin()).ifPresent(userProfileRepository::delete);
+        userProfileRepository.flush();
         userRepository.delete(existingUser);
         userRepository.flush();
         return true;

@@ -91,7 +91,9 @@ public class AccountResource {
             managedUserVM,
             managedUserVM.getPassword(),
             "ROLE_" + managedUserVM.getRole(),
-            managedUserVM.getConsentVersion()
+            managedUserVM.getConsentVersion(),
+            Boolean.TRUE.equals(managedUserVM.getAdult()),
+            managedUserVM.getNativeLanguage()
         );
         if (!user.isActivated()) {
             mailService.sendActivationEmail(user);

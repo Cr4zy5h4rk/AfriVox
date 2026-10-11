@@ -5,6 +5,9 @@ import com.afrivox.app.domain.Dataset;
 import com.afrivox.app.domain.DatasetVersion;
 import com.afrivox.app.domain.Recording;
 import com.afrivox.app.domain.TestReference;
+import com.afrivox.app.domain.UserProfile;
+import com.afrivox.app.domain.enumeration.AgeRange;
+import com.afrivox.app.domain.enumeration.Gender;
 import com.afrivox.app.domain.enumeration.LicenseKind;
 import com.afrivox.app.domain.enumeration.VersionStatus;
 import com.afrivox.app.repository.DatasetRepository;
@@ -372,10 +375,114 @@ public class DatasetPackagingService {
         sb.append("- `LICENSE.txt` : conditions d'utilisation\n");
         sb.append("- `checksums.sha256` : empreinte de chaque fichier, verifiable avec `sha256sum -c checksums.sha256`\n\n");
 
+        appendSpeakerProfile(sb, rows);
+
         sb.append("## Limites\n\n");
-        sb.append("Phrases lues, pas de la parole spontanee. Le nombre de locuteurs et leur repartition ");
-        sb.append("(age, genre, accent) ne sont pas renseignes : ne pas en tirer de conclusion sur des populations.\n");
+        sb.append("Phrases lues, pas de la parole spontanee. Les informations sur les locuteurs sont declarees par les ");
+        sb.append("contributeurs, facultatives et non verifiees : ne pas en tirer de conclusion sur des populations.\n");
         return sb.toString();
+    }
+
+    /** Un groupe de moins de locuteurs n'est jamais publie seul : il est fondu dans « autres ou non renseigne ». */
+    static final int MIN_GROUP = 5;
+
+    private static final String OTHER_GROUP = "autres ou non renseigne";
+
+    /**
+     * Repartition des locuteurs par tranche d'age, genre et pays, calculee depuis ce que les contributeurs ont declare.
+     * Rien n'est publie par locuteur, seulement des effectifs par groupe d'au moins {@value #MIN_GROUP} locuteurs
+     * (sinon un petit groupe permettrait de reconnaitre une personne). Sous {@value #MIN_GROUP} locuteurs au total,
+     * aucune repartition n'est donnee.
+     */
+    private static void appendSpeakerProfile(StringBuilder sb, List<Row> rows) {
+        Map<Long, UserProfile> speakers = new LinkedHashMap<>();
+        for (Row row : rows) {
+            speakers.putIfAbsent(row.recording().getContributor().getId(), row.recording().getContributor());
+        }
+        sb.append("## Locuteurs (informations declarees)\n\n");
+        if (speakers.size() < MIN_GROUP) {
+            sb.append(
+                "Moins de %d locuteurs : la repartition n'est pas publiee (elle permettrait de reconnaitre des personnes).\n\n".formatted(
+                    MIN_GROUP
+                )
+            );
+            return;
+        }
+        sb.append(
+            "Informations declarees, facultatives et non verifiees. Les groupes de moins de %d locuteurs sont fondus dans « %s ».%n%n".formatted(
+                MIN_GROUP,
+                OTHER_GROUP
+            )
+        );
+        appendDistribution(sb, "Tranche d'age", speakers.values(), p -> p.getAgeRange() == null ? null : ageLabel(p.getAgeRange()));
+        appendDistribution(sb, "Genre", speakers.values(), p -> p.getGender() == null ? null : genderLabel(p.getGender()));
+        appendDistribution(sb, "Pays", speakers.values(), p ->
+            p.getCountry() == null || p.getCountry().isBlank() ? null : p.getCountry().trim()
+        );
+    }
+
+    private static void appendDistribution(
+        StringBuilder sb,
+        String title,
+        java.util.Collection<UserProfile> speakers,
+        java.util.function.Function<UserProfile, String> key
+    ) {
+        Map<String, Long> byLabel = distribution(speakers.stream().map(key).toList());
+        sb.append("| ").append(title).append(" | Locuteurs |\n|---|---|\n");
+        byLabel.forEach((label, count) -> sb.append("| %s | %d |%n".formatted(label, count)));
+        sb.append('\n');
+    }
+
+    /**
+     * Effectifs par valeur (insensible a la casse). Les valeurs absentes et celles de moins de {@value #MIN_GROUP}
+     * locuteurs vont ensemble dans un groupe « autres », place en dernier.
+     */
+    static Map<String, Long> distribution(List<String> values) {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        Map<String, String> display = new HashMap<>();
+        long unknown = 0;
+        for (String value : values) {
+            if (value == null) {
+                unknown++;
+                continue;
+            }
+            String normalized = value.toLowerCase(java.util.Locale.ROOT);
+            display.putIfAbsent(normalized, value);
+            counts.merge(normalized, 1L, Long::sum);
+        }
+        Map<String, Long> result = new LinkedHashMap<>();
+        long other = unknown;
+        List<Map.Entry<String, Long>> entries = new ArrayList<>(counts.entrySet());
+        entries.sort(Map.Entry.<String, Long>comparingByValue().reversed().thenComparing(Map.Entry.comparingByKey()));
+        for (Map.Entry<String, Long> entry : entries) {
+            if (entry.getValue() >= MIN_GROUP) {
+                result.put(display.get(entry.getKey()), entry.getValue());
+            } else {
+                other += entry.getValue();
+            }
+        }
+        if (other > 0) {
+            result.put(OTHER_GROUP, other);
+        }
+        return result;
+    }
+
+    private static String ageLabel(AgeRange range) {
+        return switch (range) {
+            case R18_25 -> "18-25";
+            case R26_35 -> "26-35";
+            case R36_45 -> "36-45";
+            case R46_60 -> "46-60";
+            case R61_PLUS -> "61+";
+        };
+    }
+
+    private static String genderLabel(Gender gender) {
+        return switch (gender) {
+            case FEMALE -> "Femmes";
+            case MALE -> "Hommes";
+            case OTHER -> "Autre";
+        };
     }
 
     /**

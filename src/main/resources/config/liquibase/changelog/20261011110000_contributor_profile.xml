@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Informations declarees par les contributeurs. Rien n'est verifiable et tout est facultatif sauf, a
+        l'inscription d'un contributeur, la majorite et la langue maternelle. Le pays reutilise la colonne `country`.
+        Les profils existants gardent ces colonnes vides.
+    -->
+    <changeSet id="20261011110000-1" author="afrivox">
+        <addColumn tableName="user_profile">
+            <column name="adult_confirmed_at" type="${datetimeType}"/>
+            <column name="native_language" type="varchar(20)"/>
+            <column name="age_range" type="varchar(10)"/>
+            <column name="gender" type="varchar(10)"/>
+            <column name="region" type="varchar(60)"/>
+            <column name="other_languages" type="varchar(120)"/>
+            <column name="demographics_answered_at" type="${datetimeType}"/>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

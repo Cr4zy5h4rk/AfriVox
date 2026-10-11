@@ -7,6 +7,7 @@ import com.afrivox.app.domain.Recording;
 import com.afrivox.app.domain.TestReference;
 import com.afrivox.app.domain.UserProfile;
 import com.afrivox.app.domain.enumeration.AgeRange;
+import com.afrivox.app.domain.enumeration.DatasetPlan;
 import com.afrivox.app.domain.enumeration.Gender;
 import com.afrivox.app.domain.enumeration.LicenseKind;
 import com.afrivox.app.domain.enumeration.VersionStatus;
@@ -125,6 +126,10 @@ public class DatasetPackagingService {
             .orElseThrow(() -> new BadRequestAlertException("Dataset introuvable", ENTITY_NAME, "datasetnotfound"));
         if (dataset.getLanguage() == null) {
             throw new BadRequestAlertException("Le dataset n'a pas de langue", ENTITY_NAME, "nolanguage");
+        }
+        // Un dataset payant sans tarif ne pourrait jamais etre achete (devis impossible) : on refuse avant de construire l'archive.
+        if (dataset.getPlan() != DatasetPlan.STARTER && pricePerHourFcfa == null) {
+            throw new BadRequestAlertException("Le tarif horaire est obligatoire pour un dataset payant", ENTITY_NAME, "nopricing");
         }
         if (versionRepository.existsByDatasetIdAndLabel(datasetId, label)) {
             throw new BadRequestAlertException("Ce numero de version existe deja", ENTITY_NAME, "versionexists");

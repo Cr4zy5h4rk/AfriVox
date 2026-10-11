@@ -170,6 +170,22 @@ public class AdminDatasetOverviewService {
     /** Retire ou remet en ligne une version déjà publiée ; une version sans archive ne peut pas être remise en ligne. */
     @Transactional
     public Optional<DatasetVersion> setVersionStatus(Long versionId, VersionStatus status) {
+        return setVersionStatusInternal(versionId, status);
+    }
+
+    /**
+     * Fixe le tarif horaire d'une version déjà publiée (par exemple si elle a été publiée sans tarif). Le contenu de la
+     * version ne change pas, et les achats déjà faits gardent le prix figé au moment de l'achat.
+     */
+    @Transactional
+    public Optional<DatasetVersion> setVersionPrice(Long versionId, int pricePerHourFcfa) {
+        return versionRepository.findById(versionId).map(v -> {
+            v.setPricePerHourFcfa(pricePerHourFcfa);
+            return v;
+        });
+    }
+
+    private Optional<DatasetVersion> setVersionStatusInternal(Long versionId, VersionStatus status) {
         return versionRepository.findById(versionId).map(v -> {
             if (status == VersionStatus.PUBLISHED && v.getPackagePath() == null) {
                 throw new BadRequestAlertException("Cette version n'a pas d'archive", "datasetVersion", "nopackage");

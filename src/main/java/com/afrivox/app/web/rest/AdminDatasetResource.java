@@ -50,6 +50,10 @@ public class AdminDatasetResource {
 
     public record StatusRequest(@NotNull VersionStatus status) {}
 
+    public record PriceRequest(@NotNull @Min(0) Integer pricePerHourFcfa) {}
+
+    public record VersionPriceResponse(Long id, Integer pricePerHourFcfa) {}
+
     public record VersionStatusResponse(Long id, VersionStatus status) {}
 
     private final DatasetPackagingService packagingService;
@@ -104,6 +108,17 @@ public class AdminDatasetResource {
      * Retire (WITHDRAWN) ou remet en ligne (PUBLISHED) une version. Le contenu d'une version ne change jamais :
      * seul son état de visibilité bouge. Une version retirée sort du catalogue et ne délivre plus de liens.
      */
+    /**
+     * Fixe le tarif horaire d'une version publiée. Le contenu ne change pas ; les achats déjà faits gardent leur prix.
+     */
+    @PutMapping("/versions/{versionId}/price")
+    public VersionPriceResponse setPrice(@PathVariable Long versionId, @Valid @RequestBody PriceRequest request) {
+        return overviewService
+            .setVersionPrice(versionId, request.pricePerHourFcfa())
+            .map(v -> new VersionPriceResponse(v.getId(), v.getPricePerHourFcfa()))
+            .orElseThrow(() -> new BadRequestAlertException("Version introuvable", "datasetVersion", "notfound"));
+    }
+
     @PutMapping("/versions/{versionId}/status")
     public VersionStatusResponse setStatus(@PathVariable Long versionId, @Valid @RequestBody StatusRequest request) {
         if (request.status() == VersionStatus.DRAFT) {

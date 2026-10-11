@@ -28,5 +28,12 @@ public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
     @Query("select p.datasetVersion.id, count(p) from Purchase p where p.datasetVersion.id in :ids group by p.datasetVersion.id")
     List<Object[]> countByVersion(@Param("ids") java.util.Collection<Long> ids);
 
+    /** Achats qui ont une empreinte (donc dont une copie personnalisee a pu etre livree), pour retrouver l'origine d'une fuite. */
+    @Query(
+        "select p from Purchase p join fetch p.datasetVersion v join fetch v.dataset join fetch p.profile " +
+            "where p.fingerprint is not null order by p.createdAt desc"
+    )
+    List<Purchase> findAllTraceable();
+
     boolean existsByProfileIdAndDatasetVersionIdAndLicense(Long profileId, Long datasetVersionId, LicenseKind license);
 }

@@ -53,6 +53,14 @@ public class Purchase implements Serializable {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    /**
+     * Empreinte secrete de l'achat (jamais renvoyee par l'API ni ecrite dans l'archive) : elle derive les noms de
+     * fichiers et le marquage de la copie livree, pour retrouver l'acheteur d'une copie diffusee sans autorisation.
+     */
+    @Size(max = 40)
+    @Column(name = "fingerprint", length = 40)
+    private String fingerprint;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     private UserProfile profile;
 
@@ -113,6 +121,14 @@ public class Purchase implements Serializable {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getFingerprint() {
+        return fingerprint;
+    }
+
+    public void setFingerprint(String fingerprint) {
+        this.fingerprint = fingerprint;
     }
 
     public UserProfile getProfile() {

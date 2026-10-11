@@ -96,6 +96,21 @@ public class ApplicationProperties {
         /** Nombre de liens qu'on peut generer par achat sur 24 h (limite le partage). */
         private int maxLinksPerDay = 5;
 
+        /**
+         * Livre a chaque acheteur une copie personnalisee (noms de fichiers, ordre, marquage des audios WAV) au lieu
+         * de l'archive de reference, pour pouvoir retrouver l'origine d'une fuite. Le contenu des donnees reste le
+         * meme ; seul le SHA-256 de l'archive change (verifier avec checksums.sha256).
+         */
+        private boolean personalizeDownloads = true;
+
+        public boolean isPersonalizeDownloads() {
+            return personalizeDownloads;
+        }
+
+        public void setPersonalizeDownloads(boolean personalizeDownloads) {
+            this.personalizeDownloads = personalizeDownloads;
+        }
+
         /** Version du texte de licence que l'acheteur accepte ; a changer quand le texte change. */
         private String licenseVersion = "2026-10-v1";
 

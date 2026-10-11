@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -44,6 +46,8 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional
 public class PurchaseService {
 
+    private static final Logger LOG = LoggerFactory.getLogger(PurchaseService.class);
+
     private static final String ENTITY_NAME = "purchase";
 
     /** Devis : prix total pour une version et une licence. {@code free} vaut vrai pour le plan Starter. */
@@ -59,8 +63,19 @@ public class PurchaseService {
 
     public record Link(String token, Instant expiresAt, int maxDownloads) {}
 
-    /** Fichier a servir pour un lien valide. */
-    public record Archive(Path file, String filename) {}
+    /**
+     * Fichier a servir pour un lien valide. Si {@code personalize} est vrai, on ne sert pas le fichier tel quel mais une
+     * copie propre a l'achat ({@link #writePersonalized}), nommee {@code filename}.
+     */
+    public record Archive(
+        Path file,
+        String filename,
+        boolean personalize,
+        Long purchaseId,
+        String fingerprint,
+        String datasetSlug,
+        String versionLabel
+    ) {}
 
     /** Achat vu par son proprietaire. {@code newerVersionLabel} est non nul quand une version plus recente est publiee. */
     public record PurchaseView(
@@ -159,6 +174,7 @@ public class PurchaseService {
         purchase.setLicenseVersion(properties.getLicenseVersion());
         purchase.setLicenseAcceptedAt(now);
         purchase.setPaymentRef(quote.free() ? null : "SIM-" + UUID.randomUUID());
+        purchase.setFingerprint(newFingerprint());
         purchase.setCreatedAt(now);
         try {
             purchase = purchaseRepository.saveAndFlush(purchase);
@@ -247,7 +263,56 @@ public class PurchaseService {
         log.setDownloadedAt(Instant.now());
         log.setIp(ip != null && ip.length() <= 45 ? ip : null);
         downloadLogRepository.save(log);
-        return new Archive(file, file.getFileName().toString());
+
+        // Les achats faits avant l'empreinte en recoivent une au premier telechargement.
+        if (purchase.getFingerprint() == null) {
+            purchase.setFingerprint(newFingerprint());
+            purchaseRepository.save(purchase);
+        }
+        Dataset dataset = version.getDataset();
+        String filename = properties.isPersonalizeDownloads()
+            ? "%s-%s-%d.zip".formatted(dataset.getSlug(), version.getLabel(), purchase.getId())
+            : file.getFileName().toString();
+        return new Archive(
+            file,
+            filename,
+            properties.isPersonalizeDownloads(),
+            purchase.getId(),
+            purchase.getFingerprint(),
+            dataset.getSlug(),
+            version.getLabel()
+        );
+    }
+
+    /**
+     * Ecrit la copie personnalisee de l'acheteur dans {@code out}. Appele apres la transaction de {@link #open} :
+     * il n'utilise que ce que l'{@link Archive} contient.
+     */
+    public void writePersonalized(Archive archive, java.io.OutputStream out) throws java.io.IOException {
+        String provenance = (
+            "Copie numerotee - AfriVox%n%n" +
+            "Dataset : %s, version %s%n" +
+            "Achat : n. %d%n%n" +
+            "Cette copie est propre a l'achat ci-dessus : les noms de fichiers, l'ordre des lignes et le contenu de " +
+            "certains fichiers audio lui sont specifiques. Ils permettent de retrouver l'origine d'une copie diffusee " +
+            "sans autorisation, ce que la licence (LICENSE.txt) interdit.%n%n" +
+            "Le contenu des donnees (audio, transcriptions, decoupage) est identique pour tous les acheteurs. " +
+            "Verifier l'integrite : sha256sum -c checksums.sha256%n"
+        ).formatted(archive.datasetSlug(), archive.versionLabel(), archive.purchaseId());
+        ArchivePersonalizer.Result result = ArchivePersonalizer.personalize(archive.file(), out, archive.fingerprint(), provenance);
+        LOG.info(
+            "Copie personnalisee livree : achat {}, {} fichiers audio dont {} marques",
+            archive.purchaseId(),
+            result.audioFiles(),
+            result.watermarked()
+        );
+    }
+
+    /** Empreinte secrete d'un achat : 128 bits aleatoires (32 caracteres hexadecimaux). */
+    private static String newFingerprint() {
+        byte[] bytes = new byte[16];
+        new java.security.SecureRandom().nextBytes(bytes);
+        return java.util.HexFormat.of().formatHex(bytes);
     }
 
     private DatasetVersion publishedVersion(Dataset dataset, String label) {

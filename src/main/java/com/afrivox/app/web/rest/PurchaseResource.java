@@ -13,7 +13,6 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -27,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 /**
  * Achat de datasets : devis public, achat (licence acceptee + paiement simule), liste « Mes achats », puis liens de
@@ -71,11 +71,16 @@ public class PurchaseResource {
     }
 
     @GetMapping("/public/purchase-downloads/{token}")
-    public ResponseEntity<Resource> download(@PathVariable String token, HttpServletRequest request) {
+    public ResponseEntity<?> download(@PathVariable String token, HttpServletRequest request) {
         Archive archive = service.open(token, request.getRemoteAddr());
-        return ResponseEntity.ok()
+        ResponseEntity.BodyBuilder response = ResponseEntity.ok()
             .contentType(MediaType.parseMediaType("application/zip"))
-            .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(archive.filename()).build().toString())
-            .body(new FileSystemResource(archive.file()));
+            .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(archive.filename()).build().toString());
+        if (!archive.personalize()) {
+            return response.body(new FileSystemResource(archive.file()));
+        }
+        // Copie propre a l'achat, ecrite au fil de l'eau : pas de taille annoncee, pas de fichier temporaire sur le disque.
+        StreamingResponseBody body = out -> service.writePersonalized(archive, out);
+        return response.body(body);
     }
 }

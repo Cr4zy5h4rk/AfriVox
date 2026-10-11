@@ -494,7 +494,7 @@ public class DatasetPackagingService {
      * Texte de la licence. Il resume les droits par type de licence ; la version du texte est celle que l'acheteur
      * accepte a l'achat. Ce texte est a faire relire par l'equipe avant tout usage reel.
      */
-    private static String licenseText(LicenseKind license, String textVersion) {
+    static String licenseText(LicenseKind license, String textVersion) {
         String scope = switch (license) {
             case PROTOTYPE -> "Essais et demonstrations internes. Aucune mise en production, aucune diffusion des donnees ni de modeles destines au public.";
             case RESEARCH -> "Recherche et enseignement, publications comprises. Aucun usage commercial.";

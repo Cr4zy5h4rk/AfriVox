@@ -74,7 +74,10 @@ public class PurchaseService {
         Long purchaseId,
         String fingerprint,
         String datasetSlug,
-        String versionLabel
+        String versionLabel,
+        LicenseKind license,
+        String licenseVersion,
+        Instant licenseAcceptedAt
     ) {}
 
     /** Achat vu par son proprietaire. {@code newerVersionLabel} est non nul quand une version plus recente est publiee. */
@@ -280,7 +283,10 @@ public class PurchaseService {
             purchase.getId(),
             purchase.getFingerprint(),
             dataset.getSlug(),
-            version.getLabel()
+            version.getLabel(),
+            purchase.getLicense(),
+            purchase.getLicenseVersion(),
+            purchase.getLicenseAcceptedAt()
         );
     }
 
@@ -299,7 +305,23 @@ public class PurchaseService {
             "Le contenu des donnees (audio, transcriptions, decoupage) est identique pour tous les acheteurs. " +
             "Verifier l'integrite : sha256sum -c checksums.sha256%n"
         ).formatted(archive.datasetSlug(), archive.versionLabel(), archive.purchaseId());
-        ArchivePersonalizer.Result result = ArchivePersonalizer.personalize(archive.file(), out, archive.fingerprint(), provenance);
+        // LICENSE.txt : le texte de la licence achetee (et non celle fixee a la publication), avec la reference de l'achat
+        String licenseText =
+            DatasetPackagingService.licenseText(archive.license(), archive.licenseVersion()) +
+            "%nLicence acquise : %s, texte %s, achat n. %d, acceptee le %s.%n".formatted(
+                archive.license(),
+                archive.licenseVersion(),
+                archive.purchaseId(),
+                archive.licenseAcceptedAt()
+            );
+        ArchivePersonalizer.Result result = ArchivePersonalizer.personalize(
+            archive.file(),
+            out,
+            archive.fingerprint(),
+            provenance,
+            licenseText,
+            archive.license().name()
+        );
         LOG.info(
             "Copie personnalisee livree : achat {}, {} fichiers audio dont {} marques",
             archive.purchaseId(),

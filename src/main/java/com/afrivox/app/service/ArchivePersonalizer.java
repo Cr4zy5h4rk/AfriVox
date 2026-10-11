@@ -79,7 +79,14 @@ final class ArchivePersonalizer {
      * Ecrit la copie personnalisee. L'appelant ferme {@code target}. Les fichiers audio sont lus un a un (5 Mo au
      * plus), jamais l'archive entiere en memoire.
      */
-    static Result personalize(Path archive, OutputStream target, String fingerprint, String provenance) throws IOException {
+    static Result personalize(
+        Path archive,
+        OutputStream target,
+        String fingerprint,
+        String provenance,
+        String licenseText,
+        String licenseName
+    ) throws IOException {
         byte[] watermarkKey = watermarkKey(fingerprint);
         try (ZipFile zip = new ZipFile(archive.toFile())) {
             List<ZipEntry> audio = new ArrayList<>();
@@ -128,6 +135,11 @@ final class ArchivePersonalizer {
                 byte[] bytes = read(zip, entry);
                 if (name.equals("manifest.tsv") || (name.startsWith("splits/") && name.endsWith(".tsv"))) {
                     bytes = rewriteTable(new String(bytes, StandardCharsets.UTF_8), renamed, fingerprint).getBytes(StandardCharsets.UTF_8);
+                } else if (name.equals("LICENSE.txt")) {
+                    // La licence livree est celle que l'acheteur a choisie, pas celle fixee a la publication de la version
+                    bytes = licenseText.getBytes(StandardCharsets.UTF_8);
+                } else if (name.equals("DATASHEET.md")) {
+                    bytes = withLicenseLine(new String(bytes, StandardCharsets.UTF_8), licenseName).getBytes(StandardCharsets.UTF_8);
                 }
                 add(out, checksums, name, bytes);
             }
@@ -164,6 +176,14 @@ final class ArchivePersonalizer {
             sb.append(String.join("\t", columns)).append('\n');
         }
         return sb.toString();
+    }
+
+    /** Remplace la ligne « - Licence : ... » de la fiche par la licence reellement acquise. */
+    static String withLicenseLine(String datasheet, String licenseName) {
+        return datasheet.replaceAll(
+            "(?m)^- Licence : .*$",
+            java.util.regex.Matcher.quoteReplacement("- Licence : " + licenseName + " (voir LICENSE.txt)")
+        );
     }
 
     private static byte[] read(ZipFile zip, ZipEntry entry) throws IOException {

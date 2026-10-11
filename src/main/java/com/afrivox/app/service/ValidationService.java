@@ -82,6 +82,7 @@ public class ValidationService {
     private final LanguageRepository languageRepository;
     private final LanguageActivationService activationService;
     private final UserProfileService userProfileService;
+    private final ContributorTrialService trialService;
 
     public ValidationService(
         ApplicationProperties applicationProperties,
@@ -90,8 +91,10 @@ public class ValidationService {
         LanguageQualificationRepository qualificationRepository,
         LanguageRepository languageRepository,
         LanguageActivationService activationService,
-        UserProfileService userProfileService
+        UserProfileService userProfileService,
+        ContributorTrialService trialService
     ) {
+        this.trialService = trialService;
         this.audioProperties = applicationProperties.getAudio();
         this.recordingRepository = recordingRepository;
         this.reviewRepository = reviewRepository;
@@ -265,6 +268,8 @@ public class ValidationService {
             return;
         }
         recordingRepository.save(recording);
+        // Un enregistrement tranche peut conclure la periode d'essai de son auteur.
+        trialService.evaluate(recording.getContributor());
         LOG.info("Enregistrement {} tranche : {} ({} pour, {} contre)", recording.getId(), recording.getStatus(), accepts, rejects);
     }
 

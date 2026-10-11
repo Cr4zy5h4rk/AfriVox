@@ -43,6 +43,13 @@ public class UserProfile implements Serializable {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    /** Periode d'essai : voir {@link com.afrivox.app.service.ContributorTrialService}. */
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(name = "contributor_status", length = 20, nullable = false)
+    private com.afrivox.app.domain.enumeration.ContributorStatus contributorStatus =
+        com.afrivox.app.domain.enumeration.ContributorStatus.ACTIVE;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(unique = true)
     private User user;
@@ -112,6 +119,14 @@ public class UserProfile implements Serializable {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public com.afrivox.app.domain.enumeration.ContributorStatus getContributorStatus() {
+        return this.contributorStatus;
+    }
+
+    public void setContributorStatus(com.afrivox.app.domain.enumeration.ContributorStatus contributorStatus) {
+        this.contributorStatus = contributorStatus;
     }
 
     public User getUser() {

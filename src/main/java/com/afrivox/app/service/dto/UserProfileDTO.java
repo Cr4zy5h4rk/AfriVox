@@ -26,7 +26,17 @@ public class UserProfileDTO implements Serializable {
     @NotNull
     private Instant createdAt;
 
+    private com.afrivox.app.domain.enumeration.ContributorStatus contributorStatus;
+
     private UserDTO user;
+
+    public com.afrivox.app.domain.enumeration.ContributorStatus getContributorStatus() {
+        return contributorStatus;
+    }
+
+    public void setContributorStatus(com.afrivox.app.domain.enumeration.ContributorStatus contributorStatus) {
+        this.contributorStatus = contributorStatus;
+    }
 
     public Long getId() {
         return id;

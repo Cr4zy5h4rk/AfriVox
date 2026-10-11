@@ -82,6 +82,28 @@ export async function register(login, role, { quiet = false } = {}) {
   return status !== 400;
 }
 
+/**
+ * Periode d'essai : un nouveau contributeur est plafonne a quelques envois tant que l'admin ne l'a pas promu. Les
+ * comptes de test en envoient des centaines, on les passe donc en ACTIVE (decision de l'admin, par l'API normale).
+ * A appeler une fois le profil cree (apres le consentement). Le nom affiche d'un profil est son login.
+ */
+let adminSession = null;
+export async function promoteTestContributor(login) {
+  if (!adminSession || Date.now() - adminSession.at > 10 * 60 * 1000) {
+    adminSession = { api: await loggedIn(ADMIN_USER, ADMIN_PASSWORD), at: Date.now() };
+  }
+  const { api } = adminSession;
+  for (let page = 0; ; page++) {
+    const { json } = await api.call('GET', `/api/admin/contributors?status=TRIAL&size=100&page=${page}`);
+    const found = json.find((c) => c.displayName === login);
+    if (found) {
+      await api.call('POST', `/api/admin/contributors/${found.id}/status?value=ACTIVE`);
+      return;
+    }
+    if (json.length < 100) return; // plus de page : deja ACTIVE, ou introuvable
+  }
+}
+
 /** Demande la qualification de nos validateurs pour une langue, puis l'accepte (jamais celles des autres comptes). */
 export async function qualifyValidators(languageCode) {
   for (const v of VALIDATORS) {

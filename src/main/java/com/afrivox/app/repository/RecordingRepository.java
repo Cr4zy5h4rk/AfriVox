@@ -117,6 +117,10 @@ public interface RecordingRepository extends JpaRepository<Recording, Long> {
     )
     long countRecordedPrompts(@Param("profileId") Long profileId, @Param("campaignId") Long campaignId);
 
+    /** Enregistrements d'un contributeur par etat : lignes {@code [status, nombre]} (retires inclus, a ignorer cote appelant). */
+    @Query("select r.status, count(r) from Recording r where r.contributor.id = :profileId group by r.status")
+    List<Object[]> countByContributorAndStatus(@Param("profileId") Long profileId);
+
     /** Detection de doublon exact : meme contenu deja envoye par ce contributeur. */
     boolean existsByContributorIdAndSha256(Long contributorId, String sha256);
 

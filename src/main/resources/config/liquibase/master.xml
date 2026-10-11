@@ -54,5 +54,6 @@
     <include file="config/liquibase/changelog/20261010150000_test_reference.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261010170000_model_comment.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261010180000_community_extras.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261011100000_contributor_status.xml" relativeToChangelogFile="false"/>
     <!-- jhipster-needle-liquibase-add-incremental-changelog - JHipster will add incremental liquibase changelogs here -->
 </databaseChangeLog>

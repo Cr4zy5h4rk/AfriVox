@@ -17,6 +17,15 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, Long> 
     /** Profil rattache a un compte (via son login). */
     Optional<UserProfile> findOneByUserLogin(String login);
 
+    /** Contributeurs par etat (periode d'essai), les plus recents d'abord ; {@code status} nul = tous les etats. */
+    @Query(
+        value = "select p from UserProfile p left join fetch p.user where (:status is null or p.contributorStatus = :status) " +
+            "and exists (select a from p.user.authorities a where a.name = 'ROLE_CONTRIBUTOR')",
+        countQuery = "select count(p) from UserProfile p where (:status is null or p.contributorStatus = :status) " +
+            "and exists (select a from p.user.authorities a where a.name = 'ROLE_CONTRIBUTOR')"
+    )
+    Page<UserProfile> findContributors(@Param("status") com.afrivox.app.domain.enumeration.ContributorStatus status, Pageable pageable);
+
     default Optional<UserProfile> findOneWithEagerRelationships(Long id) {
         return this.findOneWithToOneRelationships(id);
     }

@@ -58,13 +58,17 @@ public class RecordingUploadService {
 
     private final UserProfileService userProfileService;
 
+    private final ContributorTrialService trialService;
+
     public RecordingUploadService(
         ApplicationProperties applicationProperties,
         RecordingRepository recordingRepository,
         PromptRepository promptRepository,
         ConsentRepository consentRepository,
-        UserProfileService userProfileService
+        UserProfileService userProfileService,
+        ContributorTrialService trialService
     ) {
+        this.trialService = trialService;
         this.audioProperties = applicationProperties.getAudio();
         this.recordingRepository = recordingRepository;
         this.promptRepository = promptRepository;
@@ -98,6 +102,8 @@ public class RecordingUploadService {
         }
 
         UserProfile profile = userProfileService.getOrCreateCurrent();
+        // Periode d'essai : plafond d'envois, ou compte suspendu.
+        trialService.assertCanUpload(profile);
         // Pas d'enregistrement sans consentement de collecte encore actif (un retrait est donc respecte).
         if (consentRepository.findFirstByProfileIdAndKindAndRevokedAtIsNull(profile.getId(), ConsentKind.COLLECTION).isEmpty()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Consentement de collecte requis");

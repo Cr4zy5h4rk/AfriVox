@@ -1,9 +1,12 @@
 package com.afrivox.app.service;
 
+import com.afrivox.app.config.ApplicationProperties;
 import com.afrivox.app.domain.User;
 import com.afrivox.app.domain.UserProfile;
+import com.afrivox.app.domain.enumeration.ContributorStatus;
 import com.afrivox.app.repository.UserProfileRepository;
 import com.afrivox.app.repository.UserRepository;
+import com.afrivox.app.security.AuthoritiesConstants;
 import com.afrivox.app.security.SecurityUtils;
 import com.afrivox.app.service.dto.UserProfileDTO;
 import com.afrivox.app.service.mapper.UserProfileMapper;
@@ -32,14 +35,18 @@ public class UserProfileService {
 
     private final UserRepository userRepository;
 
+    private final ApplicationProperties applicationProperties;
+
     public UserProfileService(
         UserProfileRepository userProfileRepository,
         UserProfileMapper userProfileMapper,
-        UserRepository userRepository
+        UserRepository userRepository,
+        ApplicationProperties applicationProperties
     ) {
         this.userProfileRepository = userProfileRepository;
         this.userProfileMapper = userProfileMapper;
         this.userRepository = userRepository;
+        this.applicationProperties = applicationProperties;
     }
 
     /**
@@ -60,6 +67,14 @@ public class UserProfileService {
             profile.setDisplayName(login.length() > 80 ? login.substring(0, 80) : login);
             profile.setCreatedAt(Instant.now());
             profile.setUser(user);
+            // Un compte contributeur commence en periode d'essai (si elle est activee) ; les autres roles ne sont pas concernes.
+            boolean contributor = user
+                .getAuthorities()
+                .stream()
+                .anyMatch(a -> AuthoritiesConstants.CONTRIBUTOR.equals(a.getName()));
+            if (contributor && applicationProperties.getContributorTrial().isEnabled()) {
+                profile.setContributorStatus(ContributorStatus.TRIAL);
+            }
             return userProfileRepository.save(profile);
         });
     }
@@ -67,6 +82,9 @@ public class UserProfileService {
     public UserProfileDTO save(UserProfileDTO userProfileDTO) {
         LOG.debug("Request to save UserProfile : {}", userProfileDTO);
         UserProfile userProfile = userProfileMapper.toEntity(userProfileDTO);
+        if (userProfile.getContributorStatus() == null) {
+            userProfile.setContributorStatus(ContributorStatus.ACTIVE);
+        }
         userProfile = userProfileRepository.save(userProfile);
         return userProfileMapper.toDto(userProfile);
     }
@@ -80,6 +98,15 @@ public class UserProfileService {
     public UserProfileDTO update(UserProfileDTO userProfileDTO) {
         LOG.debug("Request to update UserProfile : {}", userProfileDTO);
         UserProfile userProfile = userProfileMapper.toEntity(userProfileDTO);
+        if (userProfile.getContributorStatus() == null) {
+            // Un PUT qui n'envoie pas le statut ne doit pas le remettre a zero : on garde celui de la base.
+            userProfile.setContributorStatus(
+                userProfileRepository
+                    .findById(userProfileDTO.getId())
+                    .map(UserProfile::getContributorStatus)
+                    .orElse(ContributorStatus.ACTIVE)
+            );
+        }
         userProfile = userProfileRepository.save(userProfile);
         return userProfileMapper.toDto(userProfile);
     }

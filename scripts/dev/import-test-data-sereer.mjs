@@ -33,6 +33,7 @@ import {
   fail,
   loggedIn,
   publishDatasets,
+  promoteTestContributor,
   qualifyValidators,
   register,
   reviewEverything,
@@ -267,7 +268,10 @@ async function main() {
       // Jeton d'acces de 15 min : on se reconnecte apres 10 min. Le consentement n'est donne qu'a la premiere connexion.
       if (!session || Date.now() - session.at > 10 * 60 * 1000) {
         const api = await loggedIn(login, IMPORT_PASSWORD);
-        if (!session) await api.call('POST', '/api/consents', { kind: 'COLLECTION' }, { allow: [400, 409] });
+        if (!session) {
+          await api.call('POST', '/api/consents', { kind: 'COLLECTION' }, { allow: [400, 409] });
+          await promoteTestContributor(login);
+        }
         session = { api, at: Date.now() };
         sessions.set(login, session);
       }

@@ -21,6 +21,8 @@ public class ApplicationProperties {
 
     private final Datasets datasets = new Datasets();
 
+    private final ContributorTrial contributorTrial = new ContributorTrial();
+
     /** Active les comptes a l inscription (sans e-mail d activation). Faux par defaut. */
     private boolean autoActivateAccounts = false;
 
@@ -52,6 +54,10 @@ public class ApplicationProperties {
 
     public Audio getAudio() {
         return audio;
+    }
+
+    public ContributorTrial getContributorTrial() {
+        return contributorTrial;
     }
 
     // jhipster-needle-application-properties-property-getter
@@ -300,6 +306,45 @@ public class ApplicationProperties {
 
         public void setMaxDurationMs(int maxDurationMs) {
             this.maxDurationMs = maxDurationMs;
+        }
+    }
+
+    /**
+     * Periode d'essai des nouveaux contributeurs : tant qu'il est en essai, un contributeur ne peut pas envoyer plus de
+     * {@code maxRecordings} enregistrements. Quand tous sont releves, il passe en ACTIVE si au moins
+     * {@code minAcceptRate} ont ete valides ; sinon l'admin tranche.
+     */
+    public static class ContributorTrial {
+
+        /** Mettre a faux pour desactiver l'essai (les nouveaux contributeurs sont alors ACTIVE d'emblee). */
+        private boolean enabled = true;
+
+        private int maxRecordings = 10;
+
+        private double minAcceptRate = 0.7;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public int getMaxRecordings() {
+            return maxRecordings;
+        }
+
+        public void setMaxRecordings(int maxRecordings) {
+            this.maxRecordings = maxRecordings;
+        }
+
+        public double getMinAcceptRate() {
+            return minAcceptRate;
+        }
+
+        public void setMinAcceptRate(double minAcceptRate) {
+            this.minAcceptRate = minAcceptRate;
         }
     }
 

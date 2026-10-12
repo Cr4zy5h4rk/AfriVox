@@ -322,6 +322,122 @@ public class ApplicationProperties {
         public void setMaxDurationMs(int maxDurationMs) {
             this.maxDurationMs = maxDurationMs;
         }
+
+        private final Qc qc = new Qc();
+
+        public Qc getQc() {
+            return qc;
+        }
+
+        /**
+         * Controles qualite automatiques (WAV PCM 16 bits). Les defauts « bloquants » font refuser l'envoi, les
+         * legers abaissent seulement la note. Valeurs de depart a ajuster apres mesure sur de vrais enregistrements.
+         */
+        public static class Qc {
+
+            private boolean enabled = true;
+            /** Niveau crete minimal (dBFS) : en dessous, voix inaudible. */
+            private double minPeakDbfs = -30;
+            /** Niveau (dBFS) sous lequel une trame de 20 ms compte comme silencieuse. */
+            private double silenceFrameDbfs = -50;
+            /** Part maximale de trames silencieuses. */
+            private double maxSilenceRatio = 0.9;
+            /** Part d'echantillons satures au-dela de laquelle l'envoi est refuse. */
+            private double hardClippingRatio = 0.05;
+            /** Part d'echantillons satures qui abaisse la note. */
+            private double softClippingRatio = 0.005;
+            /** Ecart minimal (dB) entre trames fortes et faibles : en dessous, signalé « bruyant » (note seulement). */
+            private double minSnrDb = 12;
+            /** Ecart tolere entre duree annoncee et duree mesuree : le plus grand de ces deux seuils. */
+            private double durationToleranceRatio = 0.25;
+            private int durationToleranceMs = 500;
+
+            public boolean isEnabled() {
+                return enabled;
+            }
+
+            public void setEnabled(boolean enabled) {
+                this.enabled = enabled;
+            }
+
+            public double getMinPeakDbfs() {
+                return minPeakDbfs;
+            }
+
+            public void setMinPeakDbfs(double minPeakDbfs) {
+                this.minPeakDbfs = minPeakDbfs;
+            }
+
+            public double getSilenceFrameDbfs() {
+                return silenceFrameDbfs;
+            }
+
+            public void setSilenceFrameDbfs(double silenceFrameDbfs) {
+                this.silenceFrameDbfs = silenceFrameDbfs;
+            }
+
+            public double getMaxSilenceRatio() {
+                return maxSilenceRatio;
+            }
+
+            public void setMaxSilenceRatio(double maxSilenceRatio) {
+                this.maxSilenceRatio = maxSilenceRatio;
+            }
+
+            public double getHardClippingRatio() {
+                return hardClippingRatio;
+            }
+
+            public void setHardClippingRatio(double hardClippingRatio) {
+                this.hardClippingRatio = hardClippingRatio;
+            }
+
+            public double getSoftClippingRatio() {
+                return softClippingRatio;
+            }
+
+            public void setSoftClippingRatio(double softClippingRatio) {
+                this.softClippingRatio = softClippingRatio;
+            }
+
+            public double getMinSnrDb() {
+                return minSnrDb;
+            }
+
+            public void setMinSnrDb(double minSnrDb) {
+                this.minSnrDb = minSnrDb;
+            }
+
+            public double getDurationToleranceRatio() {
+                return durationToleranceRatio;
+            }
+
+            public void setDurationToleranceRatio(double durationToleranceRatio) {
+                this.durationToleranceRatio = durationToleranceRatio;
+            }
+
+            public int getDurationToleranceMs() {
+                return durationToleranceMs;
+            }
+
+            public void setDurationToleranceMs(int durationToleranceMs) {
+                this.durationToleranceMs = durationToleranceMs;
+            }
+
+            /** Seuils au format attendu par l'analyseur. */
+            public com.afrivox.app.service.AudioQualityAnalyzer.Thresholds thresholds() {
+                return new com.afrivox.app.service.AudioQualityAnalyzer.Thresholds(
+                    minPeakDbfs,
+                    silenceFrameDbfs,
+                    maxSilenceRatio,
+                    hardClippingRatio,
+                    softClippingRatio,
+                    minSnrDb,
+                    durationToleranceRatio,
+                    durationToleranceMs
+                );
+            }
+        }
     }
 
     /**

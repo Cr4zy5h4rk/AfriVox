@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.HexFormat;
+import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,9 +37,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Envoi d'un enregistrement par un contributeur : controles d'entree, stockage sur disque, ligne en base.
- * Les controles qualite automatiques (silence, bruit, duree reelle) viendront apres : l'enregistrement reste
- * {@code SUBMITTED} / {@code qcStatus = PENDING} jusque-la.
+ * Envoi d'un enregistrement par un contributeur : controles d'entree, controle qualite automatique, stockage sur
+ * disque, ligne en base. Un WAV PCM 16 bits est mesure ({@link AudioQualityAnalyzer}) : defaut bloquant = envoi
+ * refuse, sinon {@code qcStatus = PASSED} avec une note. Les autres formats restent {@code PENDING} (non analyses).
  */
 @Service
 @Transactional
@@ -97,6 +98,30 @@ public class RecordingUploadService {
             new BadRequestAlertException("Format audio non accepte", ENTITY_NAME, "invalidformat")
         );
 
+        // Controle qualite automatique : seulement pour le WAV PCM 16 bits (les formats compresses demanderaient un
+        // decodeur : ils restent PENDING, non verifies). La duree mesuree dans le fichier fait foi, pas celle du client.
+        Optional<AudioQualityAnalyzer.Report> quality = Optional.empty();
+        int effectiveDurationMs = durationMs;
+        if ("wav".equals(extension) && audioProperties.getQc().isEnabled()) {
+            quality = AudioQualityAnalyzer.analyze(audio, audioProperties.getQc().thresholds(), durationMs);
+            if (quality.isPresent()) {
+                AudioQualityAnalyzer.Report report = quality.orElseThrow();
+                effectiveDurationMs = report.durationMs();
+                if (effectiveDurationMs < audioProperties.getMinDurationMs() || effectiveDurationMs > audioProperties.getMaxDurationMs()) {
+                    throw new BadRequestAlertException("Duree hors limites", ENTITY_NAME, "invalidduration");
+                }
+                Optional<AudioQualityAnalyzer.Issue> blocking = report.firstHard();
+                if (blocking.isPresent()) {
+                    // Refuse tout de suite : le contributeur peut recommencer, et aucun relecteur n'y perd de temps.
+                    throw new BadRequestAlertException(
+                        "Controle qualite : " + blocking.orElseThrow().code(),
+                        ENTITY_NAME,
+                        blocking.orElseThrow().code()
+                    );
+                }
+            }
+        }
+
         Prompt prompt = promptRepository
             .findById(promptId)
             .orElseThrow(() -> new BadRequestAlertException("Phrase introuvable", ENTITY_NAME, "promptnotfound"));
@@ -128,9 +153,15 @@ public class RecordingUploadService {
         recording.setPrompt(prompt);
         recording.setContributor(profile);
         recording.setAudioPath(relativePath);
-        recording.setDurationMs(durationMs);
+        recording.setDurationMs(effectiveDurationMs);
         recording.setSha256(sha256);
-        recording.setQcStatus(QcStatus.PENDING);
+        if (quality.isPresent()) {
+            recording.setQcStatus(QcStatus.PASSED);
+            recording.setQcScore(quality.orElseThrow().score());
+            recording.setQcReport(quality.orElseThrow().toJson());
+        } else {
+            recording.setQcStatus(QcStatus.PENDING);
+        }
         recording.setStatus(RecordingStatus.SUBMITTED);
         recording.setCreatedAt(Instant.now());
         // Tarif promis : celui de la campagne a cet instant, meme si l'admin le change avant la relecture.

@@ -76,15 +76,26 @@ public interface RecordingRepository extends JpaRepository<Recording, Long> {
     @Query(
         "select r from Recording r join fetch r.prompt p join fetch r.contributor where r.status = com.afrivox.app.domain.enumeration.RecordingStatus.VALIDATED " +
             "and r.prompt.campaign.language.id = :languageId and (:domain = '' or lower(r.prompt.campaign.domain) = :domain) " +
+            "and r.qcStatus <> com.afrivox.app.domain.enumeration.QcStatus.FAILED " +
             "and exists (select c.id from Consent c where c.profile.id = r.contributor.id " +
             "and c.kind = com.afrivox.app.domain.enumeration.ConsentKind.COLLECTION and c.revokedAt is null) order by r.id"
     )
     List<Recording> findEligibleForDataset(@Param("languageId") Long languageId, @Param("domain") String domain);
 
+    /** Enregistrements WAV pas encore analyses (controle qualite a faire ou a rejouer), par ordre d'identifiant. */
+    @Query(
+        "select r from Recording r where r.qcStatus = com.afrivox.app.domain.enumeration.QcStatus.PENDING " +
+            "and r.qcReport is null and lower(r.audioPath) like '%.wav' order by r.id"
+    )
+    List<Recording> findPendingWav(Pageable pageable);
+
+    long countByQcStatus(com.afrivox.app.domain.enumeration.QcStatus qcStatus);
+
     /** Enregistrements a relire : envoyes, de la langue, pas les miens, pas deja relus par moi, pas encore assez relus. */
     @Query(
         "select r from Recording r join fetch r.prompt where r.status = com.afrivox.app.domain.enumeration.RecordingStatus.SUBMITTED " +
             "and r.prompt.campaign.language.id = :languageId and r.contributor.id <> :reviewerId " +
+            "and r.qcStatus <> com.afrivox.app.domain.enumeration.QcStatus.FAILED " +
             "and not exists (select rv.id from RecordingReview rv where rv.recording.id = r.id and rv.reviewer.id = :reviewerId) " +
             "and (select count(rv2) from RecordingReview rv2 where rv2.recording.id = r.id and rv2.gold = false) < :maxReviews " +
             "order by r.createdAt"

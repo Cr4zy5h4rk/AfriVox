@@ -168,7 +168,20 @@ public class DatasetPackagingService {
         version.setPricePerHourFcfa(pricePerHourFcfa);
         version.setHours((float) (totalMs / MS_PER_HOUR));
         version.setSpeakers((int) speakers);
-        // Pas de note de qualite : les controles automatiques ne sont pas encore calcules, on n'invente rien.
+        // Note de qualite : moyenne des notes mesurees (controle automatique des WAV). Absente si rien n'a ete analyse :
+        // on n'invente rien. Le DATASHEET.md precise sur combien d'enregistrements elle repose.
+        version.setQualityScore(
+            recordings
+                .stream()
+                .map(Recording::getQcScore)
+                .filter(java.util.Objects::nonNull)
+                .mapToDouble(Float::doubleValue)
+                .average()
+                .stream()
+                .mapToObj(avg -> (float) (Math.round(avg * 10) / 10d))
+                .findFirst()
+                .orElse(null)
+        );
         version.setStatus(VersionStatus.PUBLISHED);
         version.setPackagePath(relative);
         version.setSha256(sha256);
@@ -342,7 +355,22 @@ public class DatasetPackagingService {
         sb.append("- Enregistrements : ").append(rows.size()).append('\n');
         sb.append("- Duree totale : %.2f h%n".formatted(totalMs / MS_PER_HOUR));
         sb.append("- Locuteurs : ").append(rows.stream().map(Row::speaker).distinct().count()).append('\n');
-        sb.append("- Qualite : non evaluee (les controles automatiques ne sont pas encore calcules)\n\n");
+        List<Float> scores = rows
+            .stream()
+            .map(row -> row.recording().getQcScore())
+            .filter(java.util.Objects::nonNull)
+            .toList();
+        if (scores.isEmpty()) {
+            sb.append("- Qualite : non evaluee (aucun enregistrement analyse : les formats compresses ne sont pas mesures)\n\n");
+        } else {
+            sb.append(
+                "- Qualite : note moyenne %.1f / 100 sur %d enregistrements analyses (sur %d)%n%n".formatted(
+                    scores.stream().mapToDouble(Float::doubleValue).average().orElse(0),
+                    scores.size(),
+                    rows.size()
+                )
+            );
+        }
 
         sb.append("## Decoupage\n\n");
         sb.append("Le decoupage est fait par locuteur : aucun locuteur n'apparait dans deux parties.\n\n");

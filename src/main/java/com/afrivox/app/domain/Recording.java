@@ -70,6 +70,14 @@ public class Recording implements Serializable {
     @Column(name = "reward_credits")
     private Integer rewardCredits;
 
+    /**
+     * Rapport du controle qualite automatique (JSON compact : niveau, saturation, silence, bruit, defauts).
+     * {@code null} tant que l'audio n'a pas ete analyse (formats compresses, anciens enregistrements).
+     */
+    @Size(max = 1000)
+    @Column(name = "qc_report", length = 1000)
+    private String qcReport;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JsonIgnoreProperties(value = { "campaign" }, allowSetters = true)
     private Prompt prompt;
@@ -200,6 +208,14 @@ public class Recording implements Serializable {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getQcReport() {
+        return this.qcReport;
+    }
+
+    public void setQcReport(String qcReport) {
+        this.qcReport = qcReport;
     }
 
     public Integer getRewardCredits() {

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Controles qualite automatiques : rapport mesure sur l'audio (niveau, saturation, silence, bruit, defauts).
+        qc_status et qc_score existaient deja ; ils sont desormais renseignes pour les WAV PCM 16 bits.
+    -->
+    <changeSet id="20261012130000-1" author="afrivox">
+        <addColumn tableName="recording">
+            <column name="qc_report" type="varchar(1000)"/>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

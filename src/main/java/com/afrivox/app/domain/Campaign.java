@@ -60,6 +60,22 @@ public class Campaign implements Serializable {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    /** Tarifs propres a la campagne, en credits ; {@code null} = tarif global (voir {@code CreditService}). */
+    @Min(value = 0)
+    @Max(value = 1000)
+    @Column(name = "credit_validated_recording")
+    private Integer creditValidatedRecording;
+
+    @Min(value = 0)
+    @Max(value = 1000)
+    @Column(name = "credit_review_agreed")
+    private Integer creditReviewAgreed;
+
+    @Min(value = 0)
+    @Max(value = 1000)
+    @Column(name = "credit_trap_correct")
+    private Integer creditTrapCorrect;
+
     @ManyToOne(fetch = FetchType.LAZY)
     private Language language;
 
@@ -171,6 +187,30 @@ public class Campaign implements Serializable {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Integer getCreditValidatedRecording() {
+        return this.creditValidatedRecording;
+    }
+
+    public void setCreditValidatedRecording(Integer creditValidatedRecording) {
+        this.creditValidatedRecording = creditValidatedRecording;
+    }
+
+    public Integer getCreditReviewAgreed() {
+        return this.creditReviewAgreed;
+    }
+
+    public void setCreditReviewAgreed(Integer creditReviewAgreed) {
+        this.creditReviewAgreed = creditReviewAgreed;
+    }
+
+    public Integer getCreditTrapCorrect() {
+        return this.creditTrapCorrect;
+    }
+
+    public void setCreditTrapCorrect(Integer creditTrapCorrect) {
+        this.creditTrapCorrect = creditTrapCorrect;
     }
 
     public Language getLanguage() {

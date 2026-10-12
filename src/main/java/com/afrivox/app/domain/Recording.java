@@ -66,6 +66,10 @@ public class Recording implements Serializable {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    /** Credits promis a l'envoi (tarif de la campagne a ce moment) ; {@code null} pour les anciens enregistrements. */
+    @Column(name = "reward_credits")
+    private Integer rewardCredits;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JsonIgnoreProperties(value = { "campaign" }, allowSetters = true)
     private Prompt prompt;
@@ -196,6 +200,14 @@ public class Recording implements Serializable {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Integer getRewardCredits() {
+        return this.rewardCredits;
+    }
+
+    public void setRewardCredits(Integer rewardCredits) {
+        this.rewardCredits = rewardCredits;
     }
 
     public Prompt getPrompt() {

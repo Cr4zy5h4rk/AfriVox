@@ -41,6 +41,15 @@ public class CreditTransaction implements Serializable {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    /** Enregistrement a l'origine du gain (validation, relecture, piege) ; vide pour un ajustement. */
+    @Column(name = "recording_id")
+    private Long recordingId;
+
+    /** Motif libre, obligatoire pour un ajustement de l'admin. */
+    @Size(max = 200)
+    @Column(name = "note", length = 200)
+    private String note;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JsonIgnoreProperties(value = { "user" }, allowSetters = true)
     private UserProfile profile;
@@ -101,6 +110,22 @@ public class CreditTransaction implements Serializable {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Long getRecordingId() {
+        return this.recordingId;
+    }
+
+    public void setRecordingId(Long recordingId) {
+        this.recordingId = recordingId;
+    }
+
+    public String getNote() {
+        return this.note;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
     }
 
     public UserProfile getProfile() {

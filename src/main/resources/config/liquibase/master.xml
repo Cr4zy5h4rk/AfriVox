@@ -57,5 +57,6 @@
     <include file="config/liquibase/changelog/20261011100000_contributor_status.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261011110000_contributor_profile.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261011120000_purchase_fingerprint.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261012100000_credits.xml" relativeToChangelogFile="false"/>
     <!-- jhipster-needle-liquibase-add-incremental-changelog - JHipster will add incremental liquibase changelogs here -->
 </databaseChangeLog>

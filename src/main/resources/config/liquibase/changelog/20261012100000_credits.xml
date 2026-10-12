@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Credits : registre des gains (credit_transaction, deja cree), tarifs globaux modifiables par l'admin
+        (credit_rate) avec leur historique, surcharge facultative par campagne (null = tarif global) et tarif fige
+        a l'envoi sur chaque enregistrement.
+    -->
+
+    <!-- Le registre sait d'ou vient un gain (enregistrement concerne) et porte un motif libre pour les ajustements. -->
+    <changeSet id="20261012100000-1" author="afrivox">
+        <addColumn tableName="credit_transaction">
+            <column name="recording_id" type="bigint"/>
+            <column name="note" type="varchar(200)"/>
+        </addColumn>
+        <!--
+            Un meme enregistrement ne rapporte qu'une fois par personne et par motif : rejouer un consensus ne paie pas
+            deux fois. Les lignes sans enregistrement (ajustements) ne sont pas concernees (NULL distincts).
+        -->
+        <addUniqueConstraint tableName="credit_transaction"
+                             columnNames="profile_id, reason, recording_id"
+                             constraintName="ux_credit_tx__profile_reason_recording"/>
+        <createIndex tableName="credit_transaction" indexName="idx_credit_tx__profile_created">
+            <column name="profile_id"/>
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20261012100000-2" author="afrivox">
+        <createTable tableName="credit_rate">
+            <column name="kind" type="varchar(30)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="amount" type="integer">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_by" type="varchar(50)"/>
+        </createTable>
+        <!-- Valeurs de depart ; l'admin les change ensuite depuis l'onglet Credits. -->
+        <insert tableName="credit_rate">
+            <column name="kind" value="VALIDATED_RECORDING"/>
+            <column name="amount" valueNumeric="10"/>
+            <column name="updated_at" valueComputed="${now}"/>
+        </insert>
+        <insert tableName="credit_rate">
+            <column name="kind" value="REVIEW_AGREED"/>
+            <column name="amount" valueNumeric="1"/>
+            <column name="updated_at" valueComputed="${now}"/>
+        </insert>
+        <insert tableName="credit_rate">
+            <column name="kind" value="TRAP_CORRECT"/>
+            <column name="amount" valueNumeric="1"/>
+            <column name="updated_at" valueComputed="${now}"/>
+        </insert>
+
+        <createTable tableName="credit_rate_history">
+            <column name="id" type="bigint">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="scope" type="varchar(80)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="kind" type="varchar(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="old_amount" type="integer"/>
+            <column name="new_amount" type="integer"/>
+            <column name="changed_by" type="varchar(50)"/>
+            <column name="changed_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="credit_rate_history" indexName="idx_credit_rate_history__changed_at">
+            <column name="changed_at"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20261012100000-3" author="afrivox">
+        <addColumn tableName="campaign">
+            <column name="credit_validated_recording" type="integer"/>
+            <column name="credit_review_agreed" type="integer"/>
+            <column name="credit_trap_correct" type="integer"/>
+        </addColumn>
+        <!-- Tarif promis au contributeur au moment de l'envoi ; null = enregistrement anterieur (tarif du moment). -->
+        <addColumn tableName="recording">
+            <column name="reward_credits" type="integer"/>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

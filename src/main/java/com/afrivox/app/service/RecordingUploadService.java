@@ -60,15 +60,19 @@ public class RecordingUploadService {
 
     private final ContributorTrialService trialService;
 
+    private final CreditService creditService;
+
     public RecordingUploadService(
         ApplicationProperties applicationProperties,
         RecordingRepository recordingRepository,
         PromptRepository promptRepository,
         ConsentRepository consentRepository,
         UserProfileService userProfileService,
-        ContributorTrialService trialService
+        ContributorTrialService trialService,
+        CreditService creditService
     ) {
         this.trialService = trialService;
+        this.creditService = creditService;
         this.audioProperties = applicationProperties.getAudio();
         this.recordingRepository = recordingRepository;
         this.promptRepository = promptRepository;
@@ -129,6 +133,8 @@ public class RecordingUploadService {
         recording.setQcStatus(QcStatus.PENDING);
         recording.setStatus(RecordingStatus.SUBMITTED);
         recording.setCreatedAt(Instant.now());
+        // Tarif promis : celui de la campagne a cet instant, meme si l'admin le change avant la relecture.
+        recording.setRewardCredits(creditService.rewardForNewRecording(campaign));
         return recordingRepository.save(recording);
     }
 

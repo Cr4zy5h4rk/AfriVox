@@ -83,6 +83,7 @@ public class ValidationService {
     private final LanguageActivationService activationService;
     private final UserProfileService userProfileService;
     private final ContributorTrialService trialService;
+    private final CreditService creditService;
 
     public ValidationService(
         ApplicationProperties applicationProperties,
@@ -92,9 +93,11 @@ public class ValidationService {
         LanguageRepository languageRepository,
         LanguageActivationService activationService,
         UserProfileService userProfileService,
-        ContributorTrialService trialService
+        ContributorTrialService trialService,
+        CreditService creditService
     ) {
         this.trialService = trialService;
+        this.creditService = creditService;
         this.audioProperties = applicationProperties.getAudio();
         this.recordingRepository = recordingRepository;
         this.reviewRepository = reviewRepository;
@@ -241,6 +244,11 @@ public class ValidationService {
 
         if (trap) {
             updateReliability(me, language);
+            // Piege reussi : l'avis va dans le sens du consensus deja acquis (ACCEPT pour VALIDATED, REJECT sinon).
+            Verdict expected = recording.getStatus() == RecordingStatus.VALIDATED ? Verdict.ACCEPT : Verdict.REJECT;
+            if (input.verdict() == expected) {
+                creditService.awardTrapCorrect(recording, me);
+            }
         } else {
             settle(recording);
         }
@@ -268,6 +276,16 @@ public class ValidationService {
             return;
         }
         recordingRepository.save(recording);
+        // Credits : l'auteur d'un enregistrement valide, et chaque validateur dont l'avis va dans le sens du consensus.
+        // Le registre ignore un gain deja verse, donc un rejeu ne paie pas deux fois.
+        Verdict outcome = recording.getStatus() == RecordingStatus.VALIDATED ? Verdict.ACCEPT : Verdict.REJECT;
+        if (outcome == Verdict.ACCEPT) {
+            creditService.awardRecordingValidated(recording);
+        }
+        reviews
+            .stream()
+            .filter(r -> r.getVerdict() == outcome)
+            .forEach(r -> creditService.awardReviewAgreed(recording, r.getReviewer()));
         // Un enregistrement tranche peut conclure la periode d'essai de son auteur.
         trialService.evaluate(recording.getContributor());
         LOG.info("Enregistrement {} tranche : {} ({} pour, {} contre)", recording.getId(), recording.getStatus(), accepts, rejects);

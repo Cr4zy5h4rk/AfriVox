@@ -40,7 +40,11 @@ public class AdminCampaignOverviewService {
         long prompts,
         long recordingsSubmitted,
         long recordingsValidated,
-        long recordingsRejected
+        long recordingsRejected,
+        /** Tarifs propres a la campagne ({@code null} = tarif global). */
+        Integer creditValidatedRecording,
+        Integer creditReviewAgreed,
+        Integer creditTrapCorrect
     ) {}
 
     private final CampaignRepository campaignRepository;
@@ -115,7 +119,10 @@ public class AdminCampaignOverviewService {
                 prompts.getOrDefault(c.getId(), 0L),
                 byStatus.getOrDefault(RecordingStatus.SUBMITTED, 0L),
                 byStatus.getOrDefault(RecordingStatus.VALIDATED, 0L),
-                byStatus.getOrDefault(RecordingStatus.REJECTED, 0L)
+                byStatus.getOrDefault(RecordingStatus.REJECTED, 0L),
+                c.getCreditValidatedRecording(),
+                c.getCreditReviewAgreed(),
+                c.getCreditTrapCorrect()
             );
         });
     }

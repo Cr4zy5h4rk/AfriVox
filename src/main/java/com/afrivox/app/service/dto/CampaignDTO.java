@@ -37,9 +37,46 @@ public class CampaignDTO implements Serializable {
     @NotNull
     private Instant createdAt;
 
+    /** Tarifs propres a la campagne (credits) ; {@code null} = tarif global. */
+    @Min(value = 0)
+    @Max(value = 1000)
+    private Integer creditValidatedRecording;
+
+    @Min(value = 0)
+    @Max(value = 1000)
+    private Integer creditReviewAgreed;
+
+    @Min(value = 0)
+    @Max(value = 1000)
+    private Integer creditTrapCorrect;
+
     private LanguageDTO language;
 
     private DatasetRequestDTO request;
+
+    public Integer getCreditValidatedRecording() {
+        return creditValidatedRecording;
+    }
+
+    public void setCreditValidatedRecording(Integer creditValidatedRecording) {
+        this.creditValidatedRecording = creditValidatedRecording;
+    }
+
+    public Integer getCreditReviewAgreed() {
+        return creditReviewAgreed;
+    }
+
+    public void setCreditReviewAgreed(Integer creditReviewAgreed) {
+        this.creditReviewAgreed = creditReviewAgreed;
+    }
+
+    public Integer getCreditTrapCorrect() {
+        return creditTrapCorrect;
+    }
+
+    public void setCreditTrapCorrect(Integer creditTrapCorrect) {
+        this.creditTrapCorrect = creditTrapCorrect;
+    }
 
     public Long getId() {
         return id;

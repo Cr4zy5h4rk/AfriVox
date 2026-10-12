@@ -1,6 +1,7 @@
 package com.afrivox.app.repository;
 
 import com.afrivox.app.domain.CreditTransaction;
+import com.afrivox.app.domain.enumeration.CreditReason;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -14,6 +15,22 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface CreditTransactionRepository extends JpaRepository<CreditTransaction, Long> {
+    /** Le gain a-t-il deja ete verse ? (le registre ne paie jamais deux fois le meme enregistrement). */
+    boolean existsByProfileIdAndReasonAndRecordingId(Long profileId, CreditReason reason, Long recordingId);
+
+    /** Solde = somme du registre ; jamais stocke. */
+    @Query("select coalesce(sum(t.amount), 0) from CreditTransaction t where t.profile.id = :profileId")
+    long balanceOf(@Param("profileId") Long profileId);
+
+    /** Total gagne par motif (montants positifs seulement), pour le resume du contributeur. */
+    @Query(
+        "select t.reason, coalesce(sum(t.amount), 0) from CreditTransaction t " +
+            "where t.profile.id = :profileId and t.amount > 0 group by t.reason"
+    )
+    List<Object[]> earnedByReason(@Param("profileId") Long profileId);
+
+    Page<CreditTransaction> findAllByProfileId(Long profileId, Pageable pageable);
+
     default Optional<CreditTransaction> findOneWithEagerRelationships(Long id) {
         return this.findOneWithToOneRelationships(id);
     }

@@ -40,7 +40,9 @@ public class ContributionService {
         ScriptKind script,
         TextDirection direction,
         long totalPrompts,
-        long recordedByMe
+        long recordedByMe,
+        /** Credits promis par enregistrement valide dans cette campagne (tarif de la campagne ou global). */
+        int creditsPerRecording
     ) {}
 
     /** Phrase a lire. */
@@ -54,12 +56,16 @@ public class ContributionService {
 
     private final UserProfileService userProfileService;
 
+    private final CreditService creditService;
+
     public ContributionService(
         CampaignRepository campaignRepository,
         PromptRepository promptRepository,
         RecordingRepository recordingRepository,
-        UserProfileService userProfileService
+        UserProfileService userProfileService,
+        CreditService creditService
     ) {
+        this.creditService = creditService;
         this.campaignRepository = campaignRepository;
         this.promptRepository = promptRepository;
         this.recordingRepository = recordingRepository;
@@ -111,7 +117,8 @@ public class ContributionService {
             language == null ? null : language.getScript(),
             language == null ? null : language.getDirection(),
             promptRepository.countByCampaignId(campaign.getId()),
-            recordingRepository.countRecordedPrompts(profileId, campaign.getId())
+            recordingRepository.countRecordedPrompts(profileId, campaign.getId()),
+            creditService.rewardForNewRecording(campaign)
         );
     }
 }

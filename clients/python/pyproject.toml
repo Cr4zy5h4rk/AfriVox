@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "afrivox"
+version = "0.1.0"
+description = "Client en ligne de commande et bibliothèque pour la plateforme AfriVox (données vocales africaines)"
+readme = "README.md"
+requires-python = ">=3.9"
+# Aucune dépendance : bibliothèque standard uniquement (pas de licence tierce à inventorier).
+dependencies = []
+
+[project.scripts]
+afrivox = "afrivox.cli:main"
+
+[tool.setuptools]
+packages = ["afrivox"]

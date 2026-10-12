@@ -3,6 +3,8 @@ package com.afrivox.app.config;
 import static org.springframework.security.config.Customizer.withDefaults;
 
 import com.afrivox.app.security.*;
+import com.afrivox.app.service.DeveloperApiKeyService;
+import com.afrivox.app.web.filter.ApiKeyAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -13,6 +15,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
 import org.springframework.security.oauth2.server.resource.web.access.BearerTokenAccessDeniedHandler;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import tech.jhipster.config.JHipsterProperties;
 
@@ -32,7 +35,7 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) {
+    public SecurityFilterChain filterChain(HttpSecurity http, DeveloperApiKeyService apiKeyService) {
         http.cors(withDefaults())
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(authz ->
@@ -62,6 +65,8 @@ public class SecurityConfiguration {
                     .requestMatchers("/api/me/downloads/**").hasAuthority(AuthoritiesConstants.ADMIN)
                     // Achats : memes roles ; le service ne manipule que les achats du compte connecte.
                     .requestMatchers("/api/me/purchases/**", "/api/purchases/**").hasAnyAuthority(AuthoritiesConstants.DEVELOPER, AuthoritiesConstants.ORGANIZATION, AuthoritiesConstants.ADMIN)
+                    // Mes cles d'API : developpeurs et organisations, avec une session (une cle ne gere pas les cles).
+                    .requestMatchers("/api/me/api-keys/**").hasAnyAuthority(AuthoritiesConstants.DEVELOPER, AuthoritiesConstants.ORGANIZATION)
                     // Demandes de dataset sur mesure : organisations (et admin). Chacune ne voit que les siennes.
                     .requestMatchers("/api/me/requests/**").hasAnyAuthority(AuthoritiesConstants.ORGANIZATION, AuthoritiesConstants.ADMIN)
                     // CRUD généré par JHipster : référentiels lisibles par tout utilisateur connecté, écriture réservée à l'admin.
@@ -82,6 +87,8 @@ public class SecurityConfiguration {
                     .requestMatchers("/management/info").permitAll()
                     .requestMatchers("/management/**").hasAuthority(AuthoritiesConstants.ADMIN)
             )
+            // Cles d'API (en-tete X-API-Key) : authentifiees avant le filtre des jetons JWT, avec une liste blanche d'appels.
+            .addFilterBefore(new ApiKeyAuthenticationFilter(apiKeyService), BearerTokenAuthenticationFilter.class)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(exceptions ->
                 exceptions

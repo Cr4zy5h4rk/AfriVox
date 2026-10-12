@@ -59,5 +59,6 @@
     <include file="config/liquibase/changelog/20261011120000_purchase_fingerprint.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261012100000_credits.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261012110000_dataset_preview_audio.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261012120000_api_key_scopes.xml" relativeToChangelogFile="false"/>
     <!-- jhipster-needle-liquibase-add-incremental-changelog - JHipster will add incremental liquibase changelogs here -->
 </databaseChangeLog>

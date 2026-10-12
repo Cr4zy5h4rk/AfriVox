@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Cles d'API des developpeurs : portees (ce que la cle a le droit de faire), expiration facultative et date
+        de derniere utilisation. Le prefixe (public, 12 caracteres) identifie la cle a la recherche ; seul le hash
+        SHA-256 de la cle complete est conserve, jamais la cle.
+    -->
+    <changeSet id="20261012120000-1" author="afrivox">
+        <addColumn tableName="api_key">
+            <!-- Portees separees par des virgules (DOWNLOAD, EVALUATE, PUBLISH) -->
+            <column name="scopes" type="varchar(100)" defaultValue="DOWNLOAD">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expires_at" type="${datetimeType}"/>
+            <column name="last_used_at" type="${datetimeType}"/>
+        </addColumn>
+        <addUniqueConstraint tableName="api_key" columnNames="prefix" constraintName="ux_api_key__prefix"/>
+        <createIndex tableName="api_key" indexName="idx_api_key__owner">
+            <column name="owner_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

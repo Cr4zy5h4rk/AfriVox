@@ -49,6 +49,18 @@ public class ApiKey implements Serializable {
     @Column(name = "revoked_at")
     private Instant revokedAt;
 
+    /** Portées séparées par des virgules (voir {@code ApiKeyScope}). */
+    @NotNull
+    @Size(max = 100)
+    @Column(name = "scopes", length = 100, nullable = false)
+    private String scopes = "DOWNLOAD";
+
+    @Column(name = "expires_at")
+    private Instant expiresAt;
+
+    @Column(name = "last_used_at")
+    private Instant lastUsedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JsonIgnoreProperties(value = { "user" }, allowSetters = true)
     private UserProfile owner;
@@ -131,6 +143,30 @@ public class ApiKey implements Serializable {
 
     public void setRevokedAt(Instant revokedAt) {
         this.revokedAt = revokedAt;
+    }
+
+    public String getScopes() {
+        return this.scopes;
+    }
+
+    public void setScopes(String scopes) {
+        this.scopes = scopes;
+    }
+
+    public Instant getExpiresAt() {
+        return this.expiresAt;
+    }
+
+    public void setExpiresAt(Instant expiresAt) {
+        this.expiresAt = expiresAt;
+    }
+
+    public Instant getLastUsedAt() {
+        return this.lastUsedAt;
+    }
+
+    public void setLastUsedAt(Instant lastUsedAt) {
+        this.lastUsedAt = lastUsedAt;
     }
 
     public UserProfile getOwner() {

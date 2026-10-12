@@ -1,0 +1,100 @@
+# Deploiement de production : PostgreSQL + API Spring Boot + nginx (frontend Angular et reverse proxy, HTTPS).
+# Un seul domaine : nginx sert le frontend et redirige /api vers l'API (pas de CORS).
+#
+# Les secrets viennent du fichier .env (copie de .env.example, jamais commite). Voir README.md.
+#
+# Les deux depots doivent etre clones cote a cote : .../AfriVox et .../Afrivox_Frontend.
+name: afrivox
+
+services:
+  db:
+    image: postgres:18.6
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: afrivox
+      POSTGRES_USER: afrivox
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans .env}
+    volumes:
+      # PostgreSQL 18 : le point de montage recommande est /var/lib/postgresql
+      - dbdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U afrivox -d afrivox']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    # Pas de port publie : seule l'API (reseau interne) parle a la base.
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/backend.Dockerfile
+    image: afrivox-backend:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # 'prod' seulement : surtout pas 'secret-samples' (secrets factices) ni 'api-docs'
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/afrivox
+      SPRING_DATASOURCE_USERNAME: afrivox
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      # Sans ces deux secrets l'application refuse de demarrer (voulu)
+      JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64SECRET: ${JWT_BASE64_SECRET:?JWT_BASE64_SECRET manquant dans .env}
+      AFRIVOX_ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?ADMIN_PASSWORD_HASH manquant dans .env}
+      JHIPSTER_MAIL_BASE_URL: https://${DOMAIN:?DOMAIN manquant dans .env}
+      # Fichiers sur volumes (sauvegardes par backup.sh)
+      APPLICATION_AUDIO_STORAGE_DIR: /data/audio
+      APPLICATION_DATASETS_STORAGE_DIR: /data/datasets
+      # 50 % : sur un serveur de 2 Go, il faut aussi de la place pour PostgreSQL, nginx et le systeme
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=50 -XX:+ExitOnOutOfMemoryError
+    volumes:
+      - audio:/data/audio
+      - datasets:/data/datasets
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:8080/management/health/readiness >/dev/null || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    # Pas de port publie : seul nginx y accede.
+
+  web:
+    build:
+      context: ../../Afrivox_Frontend
+      dockerfile: ../AfriVox/deploy/web.Dockerfile
+    image: afrivox-web:latest
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN}
+      # Seule la variable DOMAIN est substituee dans le modele (les $variables nginx restent intactes)
+      NGINX_ENVSUBST_FILTER: ^DOMAIN$$
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - certbot-www:/var/www/certbot:ro
+      - certbot-conf:/etc/letsencrypt:ro
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    # Recharge nginx toutes les 6 h pour prendre en compte un certificat renouvele
+    command: >
+      /bin/sh -c "while :; do sleep 6h; nginx -s reload; done & exec nginx -g 'daemon off;'"
+
+  certbot:
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    volumes:
+      - certbot-www:/var/www/certbot
+      - certbot-conf:/etc/letsencrypt
+    # Renouvellement : certbot ne renouvelle que sous 30 jours d'echeance
+    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
+
+volumes:
+  dbdata:
+  audio:
+  datasets:
+  certbot-www:
+  certbot-conf:

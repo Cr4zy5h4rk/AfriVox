@@ -116,7 +116,11 @@ Desktop.ini
 # Directories
 ######################
 /bin/
-/deploy/
+
+# Deploiement (deploy/) : les fichiers de configuration sont suivis, jamais les secrets ni les sauvegardes
+/deploy/.env
+/deploy/backups/
+/deploy/*.log
 
 ######################
 # Logs

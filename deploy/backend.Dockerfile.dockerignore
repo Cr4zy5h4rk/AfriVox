@@ -1,0 +1,14 @@
+# Ne jamais envoyer au demon Docker : donnees locales (audios, archives), sorties de build, secrets et dependances Node.
+.git
+.idea
+.husky
+.devcontainer
+target
+node_modules
+data
+scripts
+deploy
+*.md
+.env
+**/.env
+**/*.log

@@ -1,0 +1,105 @@
+# Modele nginx : seule la variable ${DOMAIN} est substituee au demarrage du conteneur (NGINX_ENVSUBST_FILTER).
+
+# Limite de debit par adresse IP : protege l'API sans gener un usage normal (l'application limite deja
+# les tentatives de connexion, les commentaires et les clips audio par compte).
+limit_req_zone $binary_remote_addr zone=api:10m rate=20r/s;
+
+# Taille maximale d'un envoi : un enregistrement (5 Mo au plus cote application) plus l'enveloppe multipart.
+client_max_body_size 8m;
+
+# ---- HTTP : defi Let's Encrypt, puis redirection vers HTTPS -----------------------------------------------------
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${DOMAIN};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# ---- HTTPS : frontend et API ------------------------------------------------------------------------------------
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ${DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+
+    # En-tetes de securite. Pas de Content-Security-Policy ici : a ajouter apres test (Angular Material et
+    # le service worker demandent une liste precise de sources).
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    # Le micro n'est autorise que pour cette origine (enregistrement) ; ni camera ni geolocalisation.
+    add_header Permissions-Policy "microphone=(self), camera=(), geolocation=()" always;
+
+    gzip on;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # ---- API ---------------------------------------------------------------------------------------------------
+    location /api/ {
+        limit_req zone=api burst=60 nodelay;
+
+        proxy_pass http://backend:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        # L'API lit ces en-tetes (forward-headers-strategy: native) : vraie IP pour la limitation des
+        # tentatives de connexion et les journaux de telechargement, schema https pour le cookie Secure.
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+
+        # Les copies personnalisees sont generees au fil de l'eau : pas de tampon, delais larges.
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+    }
+
+    # Supervision interne uniquement : jamais exposee sur Internet.
+    location /management/ {
+        return 404;
+    }
+
+    # Cache : on utilise « expires » et non « add_header », car un add_header dans un bloc location efface
+    # les en-tetes de securite declares plus haut (ils ne sont pas herites).
+
+    # ---- Service worker et manifeste : jamais mis en cache, sinon une mise a jour n'arrive jamais ------------
+    location = /index.html {
+        expires -1;
+        try_files $uri =404;
+    }
+    location ~ ^/(ngsw\.json|ngsw-worker\.js|safety-worker\.js|worker-basic\.min\.js|manifest\.webmanifest)$ {
+        expires -1;
+        try_files $uri =404;
+    }
+
+    # ---- Fichiers statiques : noms hachees par le build, cache long ----------------------------------------------
+    location ~* \.(?:js|css|woff2?|png|jpg|jpeg|svg|ico|webp)$ {
+        expires 1y;
+        try_files $uri =404;
+    }
+
+    # ---- Application a page unique : toute route inconnue renvoie index.html -----------------------------------
+    location / {
+        expires -1;
+        try_files $uri $uri/ /index.html;
+    }
+}

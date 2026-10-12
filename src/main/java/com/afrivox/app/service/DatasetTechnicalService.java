@@ -16,7 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -269,10 +269,10 @@ public class DatasetTechnicalService {
                         .stream()
                         .filter(r -> r.id() == id)
                         .findFirst();
-                    if (row.isEmpty() || !row.get().file().startsWith("audio/")) {
+                    if (row.isEmpty() || !row.orElseThrow().file().startsWith("audio/")) {
                         return Optional.empty();
                     }
-                    ZipEntry entry = zip.getEntry(row.get().file());
+                    ZipEntry entry = zip.getEntry(row.orElseThrow().file());
                     if (entry == null || entry.isDirectory() || entry.getSize() > MAX_CLIP_BYTES) {
                         return Optional.empty();
                     }
@@ -394,7 +394,7 @@ public class DatasetTechnicalService {
             perSpeaker.merge(r.speaker(), 1L, Long::sum);
         }
         List<Long> perSpeakerSorted = new ArrayList<>(perSpeaker.values());
-        Collections.sort(perSpeakerSorted);
+        perSpeakerSorted.sort(Comparator.naturalOrder());
 
         long totalWords = 0;
         long totalChars = 0;

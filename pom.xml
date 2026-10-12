@@ -37,6 +37,11 @@
         <archunit-junit5.version>1.5.0</archunit-junit5.version>
         <checkstyle.version>14.0.0</checkstyle.version>
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
+        <!--
+            Liquibase 5.x est sous licence FSL-1.1 (source disponible, non permissive) : le reglement n'accepte que
+            MIT, Apache 2.0 et BSD. On reste sur la serie 4.x (Apache 2.0). Decision du 12 oct. 2026.
+        -->
+        <liquibase.version>4.29.2</liquibase.version>
         <jhipster-framework.version>9.3.0</jhipster-framework.version>
         <jib-maven-plugin.architecture>amd64</jib-maven-plugin.architecture>
         <jib-maven-plugin.image>eclipse-temurin:25-jre-noble</jib-maven-plugin.image>
@@ -80,16 +85,7 @@
             <artifactId>spring-boot-configuration-processor</artifactId>
             <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-h2console</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-starter-logging</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
+        <!-- spring-boot-h2console retire (12 oct. 2026) : inutile avec PostgreSQL, et H2 est sous MPL/EPL (copyleft faible) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Heritage de licence : usage que le developpeur declare pour son modele (PROTOTYPE, RESEARCH, COMMERCIAL).
+        Il est verifie a la publication contre les licences d'achat des datasets d'entrainement : il ne peut pas depasser
+        la plus restrictive. Nul pour les modeles publies avant ce controle et pour ceux sans dataset lie.
+    -->
+    <changeSet id="20261012140000-1" author="afrivox">
+        <addColumn tableName="ml_model">
+            <column name="usage_kind" type="varchar(20)"/>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

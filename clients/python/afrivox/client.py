@@ -71,6 +71,10 @@ SERVER_ERRORS = {
     "error.toomanykeys": "trop de clés actives",
     "error.alreadypurchased": "déjà acheté sous cette licence",
     "error.packagemissing": "archive indisponible sur le serveur",
+    "error.usagerequired": "précisez l'usage du modèle (--usage PROTOTYPE|RESEARCH|COMMERCIAL) dès qu'un dataset est cité",
+    "error.licensenotheld": "chaque dataset cité doit avoir été acheté par votre compte (le plan Starter est gratuit)",
+    "error.licenseinheritance": "l'usage demandé dépasse ce que permettent vos licences d'achat sur les datasets cités",
+    "error.licenseconflict": "la licence du modèle autorise le commercial, ce qu'interdisent vos licences d'achat (essayer CC-BY-NC-4.0)",
 }
 
 

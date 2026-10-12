@@ -34,7 +34,9 @@ public class MyModelResource {
         @Size(max = 64) String sha256,
         @Size(max = 10) String languageCode,
         Long trainedOnVersionId,
-        @Size(max = 10) List<Long> otherVersionIds
+        @Size(max = 10) List<Long> otherVersionIds,
+        /** Usage accorde au modele : obligatoire des qu'un dataset est cite, plafonne par vos licences d'achat. */
+        com.afrivox.app.domain.enumeration.LicenseKind usage
     ) {}
 
     private final ModelPublishingService service;
@@ -59,7 +61,8 @@ public class MyModelResource {
             request.sha256(),
             request.languageCode(),
             request.trainedOnVersionId(),
-            request.otherVersionIds()
+            request.otherVersionIds(),
+            request.usage()
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(service.publish(input));
     }

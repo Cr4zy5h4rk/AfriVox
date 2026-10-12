@@ -120,7 +120,9 @@ public class PublicCatalogService {
         String trainedOnDataset,
         String trainedOnVersion,
         List<DatasetRef> otherDatasets,
-        Float bestWer
+        Float bestWer,
+        /** Usage declare pour le modele (borne par les licences des datasets d'entrainement) ; nul = non precise. */
+        com.afrivox.app.domain.enumeration.LicenseKind usage
     ) {}
 
     public record EvaluationRow(
@@ -312,7 +314,8 @@ public class PublicCatalogService {
                 .sorted(Comparator.comparing((DatasetVersion v) -> v.getDataset().getTitle()).thenComparing(DatasetVersion::getLabel))
                 .map(v -> new DatasetRef(v.getDataset().getSlug(), v.getDataset().getTitle(), v.getLabel()))
                 .toList(),
-            evaluationRepository.bestWer(m.getId())
+            evaluationRepository.bestWer(m.getId()),
+            m.getUsageKind()
         );
     }
 

@@ -333,6 +333,21 @@ class ClientTest(unittest.TestCase):
         sent = json.loads(FakeServer.requests[-1]["body"])
         self.assertEqual(sent, {"name": "m", "task": "ASR", "url": "https://hf.co/m"})
 
+    def test_publish_sends_the_usage_for_license_inheritance(self):
+        result = self.client.publish_model(name="m", task="ASR", usage="RESEARCH", trainedOnVersionId=9, license="CC-BY-NC-4.0")
+
+        self.assertEqual(result["usage"], "RESEARCH")
+        sent = json.loads(FakeServer.requests[-1]["body"])
+        self.assertEqual(sent["usage"], "RESEARCH")
+        self.assertEqual(sent["trainedOnVersionId"], 9)
+
+    def test_license_inheritance_errors_are_explained(self):
+        from afrivox.client import _error_message
+
+        for code in ("licenseinheritance", "licenseconflict", "licensenotheld", "usagerequired"):
+            message = _error_message(('{"message":"error.%s"}' % code).encode())
+            self.assertNotEqual(message, "error." + code, code)
+
     def test_my_models_are_listed(self):
         self.assertEqual(self.client.models()[0]["name"], "wav2vec-wo")
 

@@ -65,6 +65,14 @@ public class MlModel implements Serializable {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    /**
+     * Usage que l'auteur declare pour le modele, verifie a la publication contre les licences d'achat des datasets
+     * cites (voir LicenseInheritance). {@code null} : modele sans dataset lie, ou publie avant ce controle.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "usage_kind", length = 20)
+    private com.afrivox.app.domain.enumeration.LicenseKind usageKind;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JsonIgnoreProperties(value = { "user" }, allowSetters = true)
     private UserProfile owner;
@@ -240,6 +248,14 @@ public class MlModel implements Serializable {
     public MlModel trainedOn(DatasetVersion datasetVersion) {
         this.setTrainedOn(datasetVersion);
         return this;
+    }
+
+    public com.afrivox.app.domain.enumeration.LicenseKind getUsageKind() {
+        return this.usageKind;
+    }
+
+    public void setUsageKind(com.afrivox.app.domain.enumeration.LicenseKind usageKind) {
+        this.usageKind = usageKind;
     }
 
     public Set<DatasetVersion> getOtherDatasets() {

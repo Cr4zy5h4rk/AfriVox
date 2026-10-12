@@ -28,6 +28,10 @@ public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
     @Query("select p.datasetVersion.id, count(p) from Purchase p where p.datasetVersion.id in :ids group by p.datasetVersion.id")
     List<Object[]> countByVersion(@Param("ids") java.util.Collection<Long> ids);
 
+    /** Licences qu'un compte detient sur des versions : (identifiant de version, licence), une ligne par achat. */
+    @Query("select p.datasetVersion.id, p.license from Purchase p where p.profile.id = :profileId and p.datasetVersion.id in :ids")
+    List<Object[]> findHeldLicenses(@Param("profileId") Long profileId, @Param("ids") java.util.Collection<Long> ids);
+
     /** Achats qui ont une empreinte (donc dont une copie personnalisee a pu etre livree), pour retrouver l'origine d'une fuite. */
     @Query(
         "select p from Purchase p join fetch p.datasetVersion v join fetch v.dataset join fetch p.profile " +

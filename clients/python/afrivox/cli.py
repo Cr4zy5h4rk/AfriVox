@@ -82,6 +82,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--language", dest="language_code")
     p.add_argument("--sha256", help="empreinte SHA-256 du fichier pointé par le lien")
     p.add_argument("--trained-on", type=int, dest="trained_on", help="numéro de version du dataset d'entraînement")
+    p.add_argument("--usage", choices=["PROTOTYPE", "RESEARCH", "COMMERCIAL"],
+                   help="usage accordé au modèle ; obligatoire avec --trained-on, plafonné par vos licences d'achat")
     return parser
 
 
@@ -184,7 +186,7 @@ def _dispatch(client: Client, args: argparse.Namespace) -> int:
         created = client.publish_model(
             name=args.name, task=args.task, url=args.model_url, license=args.model_license,
             description=args.description, languageCode=args.language_code, sha256=args.sha256,
-            trainedOnVersionId=args.trained_on,
+            trainedOnVersionId=args.trained_on, usage=args.usage,
         )
         _emit(args, created, f"Modèle publié : n° {created.get('id')} ({created.get('name')})")
     return EXIT_OK

@@ -26,8 +26,15 @@ afrivox testsets --language wo             # jeux de test du classement
 afrivox template 14 -o predictions.csv     # CSV id,text à remplir
 afrivox submit 3 14 predictions.csv        # WER / CER calculés par le serveur
 afrivox models                             # mes modèles
-afrivox publish --name mon-asr --task ASR --url https://huggingface.co/moi/mon-asr --license MIT --language wo
+afrivox publish --name mon-asr --task ASR --url https://huggingface.co/moi/mon-asr \
+  --license CC-BY-NC-4.0 --language wo --trained-on 12 --usage RESEARCH
 ```
+
+**Héritage de licence** : un modèle ne peut pas accorder plus de droits que les datasets qui l'ont entraîné. Avec
+`--trained-on`, `--usage` est obligatoire et plafonné par la plus restrictive de vos licences d'achat
+(Prototype < Recherche < Commercial) ; chaque dataset cité doit avoir été acheté (un achat gratuit suffit pour le
+plan Starter). Une licence qui autorise le commercial (MIT, Apache-2.0…) est refusée si vos licences sont plus
+restrictives : utiliser une licence non commerciale, par exemple `CC-BY-NC-4.0`.
 
 `--json` donne une sortie lisible par un script. Le code de sortie est 0 (succès), 1 (erreur de l'API ou archive
 altérée) ou 2 (mauvais usage : adresse ou clé manquante).

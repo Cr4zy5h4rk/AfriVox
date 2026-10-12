@@ -4,17 +4,22 @@ import com.afrivox.app.domain.DatasetVersion;
 import com.afrivox.app.domain.Language;
 import com.afrivox.app.domain.MlModel;
 import com.afrivox.app.domain.UserProfile;
+import com.afrivox.app.domain.enumeration.LicenseKind;
 import com.afrivox.app.domain.enumeration.MlTask;
 import com.afrivox.app.domain.enumeration.VersionStatus;
 import com.afrivox.app.repository.DatasetVersionRepository;
 import com.afrivox.app.repository.LanguageRepository;
 import com.afrivox.app.repository.MlModelRepository;
+import com.afrivox.app.repository.PurchaseRepository;
 import com.afrivox.app.service.PublicCatalogService.ModelSummary;
 import com.afrivox.app.web.rest.errors.BadRequestAlertException;
 import java.net.URI;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,7 +41,8 @@ public class ModelPublishingService {
         String sha256,
         String languageCode,
         Long trainedOnVersionId,
-        List<Long> otherVersionIds
+        List<Long> otherVersionIds,
+        LicenseKind usage
     ) {}
 
     /** Nombre maximal de datasets supplementaires par modele. */
@@ -47,14 +53,17 @@ public class ModelPublishingService {
     private final DatasetVersionRepository versionRepository;
     private final UserProfileService userProfileService;
     private final PublicCatalogService catalog;
+    private final PurchaseRepository purchaseRepository;
 
     public ModelPublishingService(
         MlModelRepository modelRepository,
         LanguageRepository languageRepository,
         DatasetVersionRepository versionRepository,
         UserProfileService userProfileService,
-        PublicCatalogService catalog
+        PublicCatalogService catalog,
+        PurchaseRepository purchaseRepository
     ) {
+        this.purchaseRepository = purchaseRepository;
         this.modelRepository = modelRepository;
         this.languageRepository = languageRepository;
         this.versionRepository = versionRepository;
@@ -97,7 +106,46 @@ public class ModelPublishingService {
             throw new BadRequestAlertException("Trop de datasets supplementaires", ENTITY_NAME, "toomanydatasets");
         }
         otherIds.forEach(id -> model.getOtherDatasets().add(publishedVersion(id)));
+
+        applyLicenseInheritance(model, owner, input.usage());
         return catalog.toModelSummary(modelRepository.save(model));
+    }
+
+    /**
+     * Héritage de licence : l'usage déclaré ne peut pas dépasser la plus restrictive des licences que l'auteur détient
+     * sur les datasets cités. Chaque dataset cité doit avoir été acheté par l'auteur (un achat gratuit suffit pour le
+     * plan Starter) : sans achat, on ne sait pas ce qu'il a le droit d'en faire.
+     */
+    private void applyLicenseInheritance(MlModel model, UserProfile owner, LicenseKind declared) {
+        Set<DatasetVersion> linked = new LinkedHashSet<>(model.getOtherDatasets());
+        if (model.getTrainedOn() != null) {
+            linked.add(model.getTrainedOn());
+        }
+        if (linked.isEmpty()) {
+            // Rien à hériter : l'usage déclaré, s'il y en a un, est simplement conservé
+            model.setUsageKind(declared);
+            return;
+        }
+        if (declared == null) {
+            throw new BadRequestAlertException("Precisez l'usage accorde a ce modele", ENTITY_NAME, "usagerequired");
+        }
+        Map<Long, List<LicenseKind>> held = new HashMap<>();
+        for (Object[] row : purchaseRepository.findHeldLicenses(owner.getId(), linked.stream().map(DatasetVersion::getId).toList())) {
+            held.computeIfAbsent((Long) row[0], id -> new ArrayList<>()).add((LicenseKind) row[1]);
+        }
+        List<LicenseKind> perVersion = new ArrayList<>();
+        for (DatasetVersion version : linked) {
+            List<LicenseKind> licenses = held.get(version.getId());
+            if (licenses == null || licenses.isEmpty()) {
+                throw new BadRequestAlertException("Vous devez avoir achete chaque dataset cite", ENTITY_NAME, "licensenotheld");
+            }
+            perVersion.add(LicenseInheritance.strongest(licenses).orElseThrow());
+        }
+        LicenseKind ceiling = LicenseInheritance.ceiling(perVersion).orElseThrow();
+        LicenseInheritance.violation(ceiling, declared, model.getLicense()).ifPresent(key -> {
+            throw new BadRequestAlertException("Licence incompatible avec les datasets d'entrainement", ENTITY_NAME, key);
+        });
+        model.setUsageKind(declared);
     }
 
     /** Seules les versions publiees peuvent etre citees (une brouillon n'est pas visible du public). */

@@ -29,7 +29,7 @@ pas vérifiées dans les textes : tout classement « inconnue » se contrôle à
 | Date | Décision | Raison |
 |---|---|---|
 | 5 oct. | Logback remplacé par **Log4j2** | Logback est en EPL/LGPL (exigé par le règlement) |
-| 12 oct. | **Liquibase 5.0.3 → 4.29.2** (propriété `liquibase.version` du `pom.xml`) | La série 5.x est sous licence **FSL-1.1** (source disponible, non open source, non permissive). La série 4.x est sous Apache 2.0 |
+| 12 oct. | **Liquibase 5.0.3 → 4.33.0** (propriété `liquibase.version` du `pom.xml`) | La série 5.x est sous licence **FSL-1.1** (source disponible, non open source, non permissive). La série 4.x est sous Apache 2.0. Il faut au moins la 4.31 : `jhipster-framework` 9.3.0 appelle `setAnalyticsEnabled`, absent de la 4.29 (l'application ne démarrait pas). Démarrage réel validé en profil `prod` (52 changements appliqués) |
 | 12 oct. | **`spring-boot-h2console` retiré** | Inutile avec PostgreSQL ; apportait H2 (MPL/EPL, copyleft faible) en `compile` |
 | 12 oct. | Ne pas mettre les images Docker dans l'inventaire des dépendances | Ce sont des outils d'exécution, non distribués avec le code (voir « Outils d'exécution ») |
 
@@ -76,7 +76,8 @@ jar : `postgres:18.6` (licence PostgreSQL), `eclipse-temurin:21` (OpenJDK, GPL-2
 - **Données de test** : la source `kallama` (agriculture, wolof) et les données sereer ont des licences **inconnues**
   ou à vérifier ; elles ne sont jamais dans le dépôt ni dans un dataset publié.
 - **Polices et icônes** du frontend : aucune police distante (pile système `system-ui`, `Segoe UI`, `Roboto`) et
-  aucune icône Material (`mat-icon` n'est pas utilisé). Reste à documenter l'origine des **icônes de la PWA**
-  (`public/icons/`, `favicon.ico`) : à confirmer qu'elles ont été créées par l'équipe.
+  aucune icône Material (`mat-icon` n'est pas utilisé). Le favicon et les **icônes de la PWA** étaient ceux
+  d'Angular ; ils sont remplacés (12 oct. 2026) par le logo AfriVox, généré par
+  `Afrivox_Frontend/scripts/generate-brand-icons.mjs` (aucune ressource externe).
 - **Texte des licences d'achat** (`DatasetPackagingService.licenseText`) : à faire relire, c'est un texte juridique
   du produit et non une licence de dépendance.

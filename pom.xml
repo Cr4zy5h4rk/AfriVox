@@ -40,8 +40,10 @@
         <!--
             Liquibase 5.x est sous licence FSL-1.1 (source disponible, non permissive) : le reglement n'accepte que
             MIT, Apache 2.0 et BSD. On reste sur la serie 4.x (Apache 2.0). Decision du 12 oct. 2026.
+            4.33.0 = derniere 4.x ; il faut au moins 4.31 (jhipster-framework 9.3.0 appelle
+            SpringLiquibase.setAnalyticsEnabled, absent de la 4.29 : l'application ne demarrait pas).
         -->
-        <liquibase.version>4.29.2</liquibase.version>
+        <liquibase.version>4.33.0</liquibase.version>
         <jhipster-framework.version>9.3.0</jhipster-framework.version>
         <jib-maven-plugin.architecture>amd64</jib-maven-plugin.architecture>
         <jib-maven-plugin.image>eclipse-temurin:25-jre-noble</jib-maven-plugin.image>

@@ -36,9 +36,9 @@ Les licences sont **lues** dans les metadonnees (poms Maven, `package-lock.json`
 | com.fasterxml.jackson.dataformat:jackson-dataformat-yaml             | 2.21.5        | compile | Apache-2.0                                                  | permissive      |          |
 | com.fasterxml.jackson.datatype:jackson-datatype-jsr310               | 2.21.5        | compile | Apache-2.0                                                  | permissive      |          |
 | com.nimbusds:nimbus-jose-jwt                                         | 10.9.1        | compile | Apache-2.0                                                  | permissive      |          |
-| com.opencsv:opencsv                                                  | 5.9           | compile | Apache-2.0                                                  | permissive      |          |
+| com.opencsv:opencsv                                                  | 5.11.2        | compile | Apache-2.0                                                  | permissive      |          |
 | com.zaxxer:HikariCP                                                  | 7.0.2         | compile | Apache-2.0                                                  | permissive      |          |
-| commons-io:commons-io                                                | 2.16.1        | compile | Apache-2.0                                                  | permissive      |          |
+| commons-io:commons-io                                                | 2.19.0        | compile | Apache-2.0                                                  | permissive      |          |
 | commons-logging:commons-logging                                      | 1.3.6         | compile | Apache-2.0                                                  | permissive      |          |
 | io.micrometer:micrometer-commons                                     | 1.17.1        | compile | Apache-2.0                                                  | permissive      |          |
 | io.micrometer:micrometer-core                                        | 1.17.1        | compile | Apache-2.0                                                  | permissive      |          |
@@ -55,9 +55,9 @@ Les licences sont **lues** dans les metadonnees (poms Maven, `package-lock.json`
 | jakarta.xml.bind:jakarta.xml.bind-api                                | 4.0.5         | compile | BSD-3-Clause (EDL)                                          | permissive      |          |
 | net.bytebuddy:byte-buddy                                             | 1.18.11       | runtime | Apache-2.0                                                  | permissive      |          |
 | org.antlr:antlr4-runtime                                             | 4.13.2        | compile | BSD-3-Clause                                                | permissive      |          |
-| org.apache.commons:commons-collections4                              | 4.4           | compile | Apache-2.0                                                  | permissive      |          |
+| org.apache.commons:commons-collections4                              | 4.5.0         | compile | Apache-2.0                                                  | permissive      |          |
 | org.apache.commons:commons-lang3                                     | 3.20.0        | compile | Apache-2.0                                                  | permissive      |          |
-| org.apache.commons:commons-text                                      | 1.12.0        | compile | Apache-2.0                                                  | permissive      |          |
+| org.apache.commons:commons-text                                      | 1.13.1        | compile | Apache-2.0                                                  | permissive      |          |
 | org.apache.logging.log4j:log4j-api                                   | 2.25.5        | compile | Apache-2.0                                                  | permissive      |          |
 | org.apache.logging.log4j:log4j-core                                  | 2.25.5        | compile | Apache-2.0                                                  | permissive      |          |
 | org.apache.logging.log4j:log4j-jul                                   | 2.25.5        | compile | Apache-2.0                                                  | permissive      |          |
@@ -75,7 +75,7 @@ Les licences sont **lues** dans les metadonnees (poms Maven, `package-lock.json`
 | org.hibernate.validator:hibernate-validator                          | 9.1.3.Final   | compile | Apache-2.0                                                  | permissive      |          |
 | org.jboss.logging:jboss-logging                                      | 3.6.3.Final   | compile | Apache-2.0                                                  | permissive      |          |
 | org.jspecify:jspecify                                                | 1.0.1         | compile | Apache-2.0                                                  | permissive      |          |
-| org.liquibase:liquibase-core                                         | 4.29.2        | compile | Apache-2.0                                                  | permissive      |          |
+| org.liquibase:liquibase-core                                         | 4.33.0        | compile | Apache-2.0                                                  | permissive      |          |
 | org.mapstruct:mapstruct                                              | 1.6.3         | compile | Apache-2.0                                                  | permissive      |          |
 | org.postgresql:postgresql                                            | 42.7.13       | compile | BSD-2-Clause                                                | permissive      |          |
 | org.slf4j:slf4j-api                                                  | 2.0.18        | compile | MIT                                                         | permissive      |          |

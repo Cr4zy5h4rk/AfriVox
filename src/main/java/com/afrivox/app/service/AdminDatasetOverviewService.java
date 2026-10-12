@@ -50,6 +50,8 @@ public class AdminDatasetOverviewService {
         String description,
         String domain,
         DatasetPlan plan,
+        /** Quelques clips de l'apercu sont ecoutables par les comptes connectes. */
+        boolean previewAudio,
         Long languageId,
         String languageName,
         List<VersionRow> versions
@@ -136,6 +138,7 @@ public class AdminDatasetOverviewService {
                 d.getDescription(),
                 d.getDomain(),
                 d.getPlan(),
+                d.isPreviewAudio(),
                 d.getLanguage() == null ? null : d.getLanguage().getId(),
                 d.getLanguage() == null ? null : d.getLanguage().getName(),
                 rowsByDataset.getOrDefault(d.getId(), List.of())

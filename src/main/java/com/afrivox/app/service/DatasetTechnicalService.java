@@ -99,7 +99,34 @@ public class DatasetTechnicalService {
         List<ModelSummary> models
     ) {}
 
-    public record PreviewRow(long id, String file, String speaker, long durationMs, String text, String split) {}
+    /** {@code audio} : un clip est ecoutable pour cette ligne (interrupteur du dataset actif et ligne de l'echantillon). */
+    public record PreviewRow(long id, String file, String speaker, long durationMs, String text, String split, boolean audio) {}
+
+    /** Clip audio d'un echantillon, tel qu'il est dans l'archive publiee. */
+    public record AudioClip(byte[] data, String contentType) {}
+
+    /** Nombre de clips ecoutables par dataset : assez pour juger la qualite, trop peu pour reconstituer le jeu. */
+    static final int PREVIEW_AUDIO_CLIPS = 5;
+
+    /** Un clip de plus de 5 Mo n'est pas un extrait : on ne le sert pas. */
+    private static final long MAX_CLIP_BYTES = 5L * 1024 * 1024;
+
+    /** Lignes de l'apercu et decoupage de chacune ; le test n'entre jamais dans l'echantillon audio. */
+    private record PreviewData(List<ManifestRow> head, Map<Long, String> splitOf) {
+        /** Les {@value DatasetTechnicalService#PREVIEW_AUDIO_CLIPS} premieres lignes hors test, dans l'ordre du manifeste. */
+        Set<Long> sampleIds() {
+            Set<Long> ids = new java.util.LinkedHashSet<>();
+            for (ManifestRow r : head) {
+                if (ids.size() >= PREVIEW_AUDIO_CLIPS) {
+                    break;
+                }
+                if (!"test".equals(splitOf.getOrDefault(r.id(), "train"))) {
+                    ids.add(r.id());
+                }
+            }
+            return ids;
+        }
+    }
 
     private final ApplicationProperties.Datasets properties;
     private final DatasetRepository datasetRepository;
@@ -184,8 +211,9 @@ public class DatasetTechnicalService {
     }
 
     /**
-     * Premières lignes du manifeste (texte et durée, <b>pas d'audio</b>), au plus {@value #MAX_PREVIEW_ROWS} :
-     * de quoi voir la forme des données sans en distribuer un extrait utile. Réservé aux utilisateurs connectés.
+     * Premières lignes du manifeste (texte et durée), au plus {@value #MAX_PREVIEW_ROWS}. Si l'interrupteur
+     * {@code previewAudio} du dataset est actif, {@value #PREVIEW_AUDIO_CLIPS} d'entre elles ont un clip écoutable
+     * ({@link #previewAudio}) ; sinon aucun audio n'est exposé. Réservé aux utilisateurs connectés.
      */
     public Optional<List<PreviewRow>> preview(String slug, String label) {
         return findVersion(slug, label).flatMap(v -> {
@@ -194,19 +222,22 @@ public class DatasetTechnicalService {
                 return Optional.empty();
             }
             try (ZipFile zip = new ZipFile(file.toFile())) {
-                List<ManifestRow> rows = readManifest(zip, MANIFEST);
-                List<ManifestRow> head = rows.subList(0, Math.min(MAX_PREVIEW_ROWS, rows.size()));
-                Map<Long, String> splitOf = new HashMap<>();
-                for (String name : List.of("train", "dev", "test")) {
-                    for (ManifestRow r : readManifest(zip, "splits/" + name + ".tsv")) {
-                        splitOf.put(r.id(), name);
-                    }
-                }
+                PreviewData data = readPreview(zip);
+                Set<Long> sample = v.getDataset().isPreviewAudio() ? data.sampleIds() : Set.of();
                 return Optional.of(
-                    head
+                    data
+                        .head()
                         .stream()
                         .map(r ->
-                            new PreviewRow(r.id(), r.file(), r.speaker(), r.durationMs(), r.text(), splitOf.getOrDefault(r.id(), "train"))
+                            new PreviewRow(
+                                r.id(),
+                                r.file(),
+                                r.speaker(),
+                                r.durationMs(),
+                                r.text(),
+                                data.splitOf().getOrDefault(r.id(), "train"),
+                                sample.contains(r.id())
+                            )
                         )
                         .toList()
                 );
@@ -214,6 +245,65 @@ public class DatasetTechnicalService {
                 throw new UncheckedIOException(e);
             }
         });
+    }
+
+    /**
+     * Un clip de l'échantillon audio. Vide (404) si l'interrupteur du dataset est coupé, si la ligne n'est pas dans
+     * l'échantillon (le client ne peut donc pas demander un autre fichier de l'archive) ou si le fichier manque.
+     */
+    public Optional<AudioClip> previewAudio(String slug, String label, long id) {
+        return findVersion(slug, label)
+            .filter(v -> v.getDataset().isPreviewAudio())
+            .flatMap(v -> {
+                Path file = archivePath(v);
+                if (file == null) {
+                    return Optional.empty();
+                }
+                try (ZipFile zip = new ZipFile(file.toFile())) {
+                    PreviewData data = readPreview(zip);
+                    if (!data.sampleIds().contains(id)) {
+                        return Optional.empty();
+                    }
+                    Optional<ManifestRow> row = data
+                        .head()
+                        .stream()
+                        .filter(r -> r.id() == id)
+                        .findFirst();
+                    if (row.isEmpty() || !row.get().file().startsWith("audio/")) {
+                        return Optional.empty();
+                    }
+                    ZipEntry entry = zip.getEntry(row.get().file());
+                    if (entry == null || entry.isDirectory() || entry.getSize() > MAX_CLIP_BYTES) {
+                        return Optional.empty();
+                    }
+                    try (InputStream in = zip.getInputStream(entry)) {
+                        return Optional.of(new AudioClip(in.readAllBytes(), contentType(entry.getName())));
+                    }
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
+    }
+
+    private static PreviewData readPreview(ZipFile zip) throws IOException {
+        List<ManifestRow> rows = readManifest(zip, MANIFEST);
+        List<ManifestRow> head = rows.subList(0, Math.min(MAX_PREVIEW_ROWS, rows.size()));
+        Map<Long, String> splitOf = new HashMap<>();
+        for (String name : List.of("train", "dev", "test")) {
+            for (ManifestRow r : readManifest(zip, "splits/" + name + ".tsv")) {
+                splitOf.put(r.id(), name);
+            }
+        }
+        return new PreviewData(head, splitOf);
+    }
+
+    private static String contentType(String name) {
+        String lower = name.toLowerCase();
+        if (lower.endsWith(".wav")) return "audio/wav";
+        if (lower.endsWith(".webm")) return "audio/webm";
+        if (lower.endsWith(".ogg")) return "audio/ogg";
+        if (lower.endsWith(".m4a")) return "audio/mp4";
+        return "application/octet-stream";
     }
 
     private Optional<DatasetVersion> findVersion(String slug, String label) {

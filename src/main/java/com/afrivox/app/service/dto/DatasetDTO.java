@@ -30,7 +30,18 @@ public class DatasetDTO implements Serializable {
     @NotNull
     private DatasetPlan plan;
 
+    /** Quelques clips de l'apercu sont ecoutables par les comptes connectes. */
+    private Boolean previewAudio;
+
     private LanguageDTO language;
+
+    public Boolean getPreviewAudio() {
+        return previewAudio;
+    }
+
+    public void setPreviewAudio(Boolean previewAudio) {
+        this.previewAudio = previewAudio;
+    }
 
     public Long getId() {
         return id;

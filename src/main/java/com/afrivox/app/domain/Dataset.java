@@ -49,6 +49,10 @@ public class Dataset implements Serializable {
     @Column(name = "plan", nullable = false)
     private DatasetPlan plan;
 
+    /** Quelques clips de l'apercu sont ecoutables par les comptes connectes (reglage de l'admin, faux par defaut). */
+    @Column(name = "preview_audio", nullable = false)
+    private boolean previewAudio = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     private Language language;
 
@@ -65,6 +69,14 @@ public class Dataset implements Serializable {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public boolean isPreviewAudio() {
+        return this.previewAudio;
+    }
+
+    public void setPreviewAudio(boolean previewAudio) {
+        this.previewAudio = previewAudio;
     }
 
     public String getSlug() {

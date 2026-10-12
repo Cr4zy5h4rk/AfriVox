@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Interrupteur par dataset : quelques clips de l'apercu sont ecoutables par les comptes connectes. Desactive par
+        defaut : un dataset dont les donnees ne doivent pas sortir (ex. conversations reelles) n'expose jamais d'audio.
+    -->
+    <changeSet id="20261012110000-1" author="afrivox">
+        <addColumn tableName="dataset">
+            <column name="preview_audio" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

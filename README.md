@@ -1,284 +1,201 @@
-# AfriVox
+# AfriVox : backend
 
-Plateforme de données vocales africaines (concours CADEV 2026, Systalink). Des contributeurs enregistrent et valident des phrases dans des langues africaines (wolof, pulaar d'abord) ; des développeurs téléchargent des jeux de données et publient des modèles ; des organisations demandent des jeux de données sur mesure.
+Plateforme de données vocales africaines, réalisée pour le concours CADEV 2026 (Systalink).
 
-Ce dépôt contient le **backend** : monolithe JHipster 9.3.0 (Spring Boot 4.1.1, Java 21, Maven, PostgreSQL, Liquibase, JWT), sans frontend généré. Le frontend Angular sera une application séparée.
+- **Contributeurs** : enregistrent des phrases dans leur langue (wolof, pulaar, sereer…), valident celles des autres et gagnent des crédits.
+- **Développeurs** : parcourent un catalogue de datasets versionnés, les téléchargent, publient des modèles et les comparent sur un classement public.
+- **Organisations** : demandent un dataset sur mesure et suivent l'avancement de leur demande.
+- **Administrateurs** : ouvrent des campagnes, qualifient les validateurs, publient des versions de datasets.
 
-Le fichier `../CLAUDE.md` décrit le contexte du projet, le règlement du concours et les décisions de stack. Ce README garde la trace de ce qui a été fait dans le code et de la façon de le faire tourner.
+Ce dépôt contient l'**API** (Spring Boot). L'interface Angular est dans le dépôt `Afrivox_Frontend`.
 
 ## Sommaire
 
-1. [Démarrage](#démarrage)
-2. [Configuration et secrets](#configuration-et-secrets)
-3. [Journal des modifications](#journal-des-modifications)
-4. [Authentification](#authentification)
-5. [Rôles](#rôles)
-6. [Dépendances et licences](#dépendances-et-licences)
-7. [Tests](#tests)
-8. [Reste à faire](#reste-à-faire)
+1. [Fonctionnalités](#fonctionnalités)
+2. [Architecture](#architecture)
+3. [Démarrage](#démarrage)
+4. [Configuration](#configuration)
+5. [API](#api)
+6. [Rôles et sécurité](#rôles-et-sécurité)
+7. [Données sur disque](#données-sur-disque)
+8. [Déploiement](#déploiement)
+9. [Client Python et scripts](#client-python-et-scripts)
+10. [Structure du dépôt](#structure-du-dépôt)
+11. [Licences](#licences)
+
+## Fonctionnalités
+
+| Domaine                      | Ce que fait la plateforme                                                                                                                                         |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Collecte**                 | Campagnes de phrases, envoi d'enregistrements audio (WAV, WebM, Ogg, M4A, format reconnu par le contenu), consentement versionné et révocable.                    |
+| **Contrôle qualité**         | Analyse automatique des WAV : durée réelle, niveau, saturation, silence, bruit estimé, note de 0 à 100. Les enregistrements inutilisables sont refusés à l'envoi. |
+| **Validation par les pairs** | Chaque enregistrement est relu par plusieurs validateurs qualifiés ; consensus à 2 avis concordants ; tâches pièges pour mesurer la fiabilité des validateurs.    |
+| **Langues**                  | Une langue devient active quand elle compte assez de validateurs qualifiés ; avant, liste d'attente.                                                              |
+| **Période d'essai**          | Un nouveau contributeur démarre avec un plafond d'envois ; il passe actif seul si ses enregistrements sont validés.                                               |
+| **Crédits**                  | Registre en ajout seul, gains versés au consensus, tarifs réglables par l'administrateur, surcharge par campagne.                                                 |
+| **Datasets**                 | Versions immuables (archive zip, manifeste, découpages train/dev/test par locuteur, fiche technique), par langue et par domaine, avec plans Starter, Plus et Pro. |
+| **Achat et téléchargement**  | Devis selon la licence choisie (Prototype, Recherche, Commercial), liens signés et expirants, copie personnalisée et traçable par acheteur.                       |
+| **Model Hub**                | Publication de modèles (métadonnées et lien, jamais les poids), héritage de licence depuis les datasets d'entraînement, commentaires, signalement, notifications. |
+| **Classement**               | Le développeur envoie ses prédictions (CSV) ; la plateforme calcule WER et CER contre des transcriptions de référence jamais publiées.                            |
+| **Clés d'API**               | Clés à portées limitées (`DOWNLOAD`, `EVALUATE`, `PUBLISH`), hachées, révocables, jamais administrateur.                                                          |
+| **Administration**           | Utilisateurs, campagnes, datasets, demandes, contributeurs, crédits, modération, contrôle qualité, recherche de fuite d'une copie diffusée.                       |
+
+## Architecture
+
+- **JHipster 9.3** : monolithe Spring Boot 4.1, Java 21, Maven.
+- **PostgreSQL 18**, schéma géré par **Liquibase** (`src/main/resources/config/liquibase`).
+- **JWT** : jeton d'accès de 15 minutes, jeton de rafraîchissement en cookie `HttpOnly`, rotation et détection de rejeu.
+- **Log4j2** pour les journaux ; pas de cache applicatif.
+- Audios et archives de datasets écrits sur disque (volumes Docker en production).
+- Derrière nginx, un seul domaine : le frontend est servi en statique, `/api` est transmis à Spring.
+
+```
+src/main/java/com/afrivox/app/
+├── domain/        entités JPA et énumérations
+├── repository/    accès aux données (Spring Data)
+├── service/       logique métier (validation, crédits, datasets, évaluation, licences…)
+├── web/rest/      contrôleurs REST
+├── web/filter/    authentification par clé d'API et liste blanche des routes
+├── security/      JWT, rôles, limitation des tentatives
+└── config/        configuration Spring
+```
 
 ## Démarrage
 
 ### Prérequis
 
-- JDK 21. Sur la machine de développement, celui d'IntelliJ convient : `C:\Program Files\JetBrains\IntelliJ IDEA 2025.1.3\jbr`.
-- Docker Desktop, pour PostgreSQL et pour les tests d'intégration (Testcontainers).
-- Node.js uniquement pour les outils JHipster (prettier, hooks).
-
-### Variables d'environnement pour construire sur Windows
-
-```bash
-export JAVA_HOME="/c/Program Files/JetBrains/IntelliJ IDEA 2025.1.3/jbr"
-# Sans cette option, Maven échoue avec une erreur de certificat PKIX sur Maven Central
-export MAVEN_OPTS="-Djavax.net.ssl.trustStoreType=Windows-ROOT"
-```
+- JDK 21
+- Docker (PostgreSQL de développement)
+- Node.js (outils JHipster : prettier, hooks Git)
 
 ### Lancer en développement
 
 ```bash
-docker compose -f src/main/docker/postgresql.yml up --wait   # base PostgreSQL
-./mvnw                                                       # profil dev, port 8080
+docker compose -f src/main/docker/postgresql.yml up --wait   # PostgreSQL sur localhost:5432
+./mvnw                                                       # profil dev, http://localhost:8080
 ```
 
-Le profil `dev` inclut `secret-samples` : les secrets de développement y sont des valeurs d'exemple. Voir la section suivante pour le hash du mot de passe administrateur.
+Le profil `dev` charge des valeurs d'exemple pour les secrets (`application-secret-samples.yml`) et quelques données de départ (langue wolof, une campagne, des phrases).
 
-### Construire
-
-```bash
-./mvnw -Pprod clean verify          # jar de production + tests
-./mvnw -ntp verify -DskipTests -Pprod jib:dockerBuild   # image Docker
-```
-
-## Configuration et secrets
-
-Aucun secret n'est versionné pour la production. Le profil `prod` refuse de démarrer si l'un d'eux manque.
-
-| Variable d'environnement                                   | Rôle                                                                                                 |
-| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64SECRET`        | Secret de signature des JWT (Base64, 64 octets minimum). Ne jamais réutiliser celui du profil `dev`. |
-| `AFRIVOX_ADMIN_PASSWORD_HASH`                              | Hash BCrypt du mot de passe du compte `admin` créé par Liquibase.                                    |
-| `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` | Accès PostgreSQL.                                                                                    |
-
-Générer le hash BCrypt de l'administrateur :
+Le compte `admin` est créé par Liquibase au premier démarrage à partir de `AFRIVOX_ADMIN_PASSWORD_HASH` (hash BCrypt). Pour en générer un :
 
 ```bash
 docker run --rm httpd:2.4-alpine htpasswd -nbBC 10 "" 'MotDePasse' | cut -d: -f2
 # remplacer le préfixe $2y$ par $2a$
 ```
 
-En local, remplacer `CHANGE_ME_BCRYPT_HASH` dans `application-secret-samples.yml` (sans commiter le résultat) ou définir `AFRIVOX_ADMIN_PASSWORD_HASH`.
-
-### Propriétés de l'application (`application.*`)
-
-| Propriété                                             | Défaut                                     | Effet                                                                                             |
-| ----------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| `auto-activate-accounts`                              | `false` (code), `true` (`application.yml`) | Active les comptes à l'inscription, sans e-mail. À passer à `false` quand le SMTP sera configuré. |
-| `security.refresh-token-validity-seconds`             | 604800 (7 j)                               | Durée du cookie de rafraîchissement.                                                              |
-| `security.refresh-token-remember-me-validity-seconds` | 2592000 (30 j)                             | Durée avec « se souvenir de moi ».                                                                |
-| `security.refresh-cookie-secure`                      | `true`                                     | `false` en développement local (HTTP).                                                            |
-| `security.login-max-attempts`                         | 5                                          | Échecs par couple (IP, identifiant) avant blocage.                                                |
-| `security.ip-max-attempts`                            | 30                                         | Échecs par IP avant blocage.                                                                      |
-| `security.login-lock-seconds`                         | 900                                        | Durée du blocage et fenêtre de comptage.                                                          |
-| `consent.current-version`                             | `2026-10-v1`                               | Version du consentement à accepter à l'inscription.                                               |
-
-### Derrière nginx
-
-Le profil `prod` active `server.forward-headers-strategy: native`. nginx doit donc transmettre `X-Forwarded-For` et `X-Forwarded-Proto`, sans quoi la limitation des tentatives voit toujours la même adresse.
-
-## Journal des modifications
-
-État au **6 octobre 2026**. Les points 1 à 3 sont commités ; le point 4 (entités métier) ne l'est pas encore.
-
-### 1. Nettoyage après la génération JHipster
-
-| Sujet                  | Avant                                                            | Après                                                                                                                                                                                          |
-| ---------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Comptes par défaut     | `admin/admin` et `user/user` chargés par CSV                     | Supprimés. L'`admin` est créé par le changeSet Liquibase `00000000000003` à partir de `AFRIVOX_ADMIN_PASSWORD_HASH` ; le démarrage s'arrête si le hash manque. Non exécuté en contexte `test`. |
-| Secret JWT             | Secret de dev partout                                            | Dev uniquement (`secret-samples`) ; production par variable d'environnement.                                                                                                                   |
-| Activation des comptes | E-mail obligatoire, pas de SMTP                                  | `application.auto-activate-accounts`.                                                                                                                                                          |
-| Rôles                  | `ROLE_ADMIN`, `ROLE_USER`                                        | + `ROLE_CONTRIBUTOR`, `ROLE_DEVELOPER`, `ROLE_ORGANIZATION`.                                                                                                                                   |
-| Journalisation         | Logback                                                          | Log4j2 (`spring-boot-starter-log4j2`). Protection contre la falsification de journal : retours à la ligne et tabulations des messages remplacés par `_` (`%replace` dans `log4j2-spring.xml`). |
-| Cache                  | Hazelcast, cache de second niveau Hibernate, `@Cacheable`        | Retirés. Décision du projet : « pas de cache ».                                                                                                                                                |
-| Supervision            | Prometheus, Grafana, Control Center, nombreux endpoints actuator | Retirés. Actuator n'expose plus que `health` et `info`. La règle qui laissait `/management/prometheus` en accès libre est supprimée.                                                           |
-
-Le changeSet initial (`00000000000001`) a été modifié au lieu d'être complété. Si une base locale existe déjà, la recréer, sinon Liquibase signale une erreur de somme de contrôle.
-
-Fichiers supprimés : `CacheConfiguration`, `CacheKeyGeneratorConfiguration`, `LoggingConfiguration` (appenders JSON et Logstash propres à Logback), `CRLFLogConverter` et son test, `logback-spring.xml`, `logback.xml`, `user.csv`, `user_authority.csv`, et les fichiers Docker de Hazelcast, Prometheus, Grafana et du Control Center.
-
-Le message de démarrage de l'application tient maintenant sur une ligne, car le journal remplace les retours à la ligne.
-
-### 2. Endpoints JHipster retirés
-
-- `GET /api/users` (`PublicUserResource`) : listait les identifiants de tous les utilisateurs à n'importe quel utilisateur connecté. Retiré, ainsi que `UserService.getAllPublicUsers` et la requête associée. Un profil public de développeur sera ajouté plus tard, avec seulement les champs voulus.
-- `/api/authorities` (`AuthorityResource`) : création et suppression de rôles par l'API, alors que les rôles sont fixes dans le code. Retiré avec son test.
-- Conservés : `/api/admin/users` (gestion des comptes par l'administrateur, réservée à `ROLE_ADMIN`) et `/api/account` (profil, mot de passe).
-
-### 3. Authentification
-
-Détaillée dans la section suivante. Code ajouté :
-
-- `AuthenticateController` réécrit (connexion, rafraîchissement, déconnexion, limitation des tentatives).
-- Services `RefreshTokenService`, `LoginAttemptService`, exception `InvalidRefreshTokenException`.
-- Entités `RefreshToken` et `UserConsent`, dépôts associés, changelog `20261005000001_auth_tables.xml`.
-- Inscription avec rôle et consentement (`ManagedUserVM`, `AccountResource`, `UserService`).
-- Mot de passe : 8 caractères minimum (avant : 4).
-- Jeton d'accès de 15 minutes (avant : 24 h), plus de jeton d'accès de 30 jours pour « se souvenir de moi ».
-
-### 4. Entités métier (6 octobre 2026)
-
-Générées depuis `afrivox.jdl` : 16 entités (`Language`, `UserProfile`, `LanguageQualification`, `Consent`, `Campaign`, `Prompt`, `Recording`, `RecordingReview`, `CreditTransaction`, `Dataset`, `DatasetVersion`, `DownloadLog`, `MlModel`, `Evaluation`, `ApiKey`, `DatasetRequest`) avec repository, service, DTO (MapStruct), resource REST, tests générés et changelogs Liquibase (+ données factices en contexte `faker`). `UserProfile` est lié à `User` (un pour un).
-
-**Incident à ne pas reproduire.** Le JDL contenait `packageName sn.afrivox`. JHipster a alors régénéré toute l'application dans un second paquet et écrasé nos corrections (`pom.xml`, `application*.yml`, `master.xml`, Docker, retour de Prometheus/Grafana). Retour arrière par git, puis JDL corrigé (`com.afrivox.app`, `baseName afriVox`). La commande à utiliser est :
+### Construire
 
 ```bash
-jhipster jdl afrivox.jdl --ignore-application --skip-git
+./mvnw -Pprod clean verify -DskipTests      # jar de production
 ```
 
-Après chaque génération : `git status` et `git diff` avant de continuer. La génération avait aussi écrasé `ConsentResource` et son test (`/api/consent/current`) ; restaurés depuis git.
+Les images Docker et la pile complète (PostgreSQL, API, nginx, HTTPS) se construisent avec `deploy/` (voir [Déploiement](#déploiement)).
 
-**Consentements.** `Consent` (consentement par type : collecte, revente, diffusion libre, licence de voix) est distinct de `UserConsent` (version acceptée à l'inscription). Pas de CRUD générique : `ConsentRecordResource` (`/api/consents`) ne permet que de lister **mes** consentements, d'en accorder un (la version de la politique vient du serveur) et de le retirer (`revokedAt` daté, rien n'est supprimé). Le retrait n'exclut pas encore les enregistrements des versions de dataset : à brancher à la construction des versions. `UserProfile` est créé au premier usage (`UserProfileService.getOrCreateCurrent`), pas à l'inscription.
+Sous Windows, si Maven échoue avec une erreur de certificat PKIX :
 
-**Accès aux ressources générées** (`SecurityConfiguration`, refus par défaut) :
-
-| Ressources                                                                                                                                                                                                     | Lecture                                    | Écriture |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | -------- |
-| `languages`, `campaigns`, `prompts`, `datasets`, `ml-models`, `evaluations`                                                                                                                                    | utilisateur connecté                       | admin    |
-| `dataset-versions` (chemins de paquets), `recordings` (chemins audio), `recording-reviews`, `credit-transactions`, `api-keys`, `user-profiles`, `language-qualifications`, `dataset-requests`, `download-logs` | admin                                      | admin    |
-| `consents`                                                                                                                                                                                                     | utilisateur connecté (les siens seulement) | idem     |
-
-Les usages réels (« mes enregistrements », « mes clés d'API »…) passeront par des endpoints dédiés filtrés par propriétaire.
-
-Vérifié : `./mvnw -o compile` passe. Tests non lancés : les `*ResourceIT` générés utilisent un utilisateur simple et échoueront sur les ressources réservées à l'admin, à adapter.
-
-À vérifier avant la production : le contexte Liquibase `faker` ne doit pas être actif (`spring.liquibase.contexts`).
-
-### 5. Envoi des enregistrements (6 octobre 2026)
-
-`POST /api/me/recordings` (multipart : `promptId`, `durationMs`, `file`) et `GET /api/me/recordings` (les siens, paginé). Réservés à `ROLE_CONTRIBUTOR` et `ROLE_ADMIN`. Le CRUD généré `/api/recordings` reste réservé à l'admin.
-
-Contrôles, dans l'ordre : taille (1 octet à 5 Mo), durée annoncée (0,5 à 30 s), **format détecté par les premiers octets** (webm, ogg, wav, m4a ; le type MIME et le nom du client sont ignorés), phrase existante dans une campagne `ACTIVE`, **consentement `COLLECTION` encore actif** (403 sinon : un retrait bloque les nouveaux envois), doublon exact par SHA-256 pour ce contributeur (409).
-
-Stockage : `application.audio.storage-dir` (défaut `data/audio`, ignoré par git), sous `année/mois/<uuid>.<ext>` ; nom généré par le serveur, écriture temporaire puis renommage atomique. Le chemin n'est jamais renvoyé à l'API (`RecordingSummary`). L'enregistrement est créé `SUBMITTED` / `qcStatus = PENDING`.
-
-Limites connues : la durée est celle annoncée par le client (le contrôle qualité devra la recalculer) ; le fichier est lu en mémoire (5 Mo max) ; aucune limitation du nombre d'envois par minute ; les contrôles qualité (silence, bruit, doublons proches) ne sont pas faits. Test unitaire `AudioFormatTest` écrit, non lancé.
-
-### 6. Phrases à enregistrer et jeu de départ (6 octobre 2026)
-
-- `GET /api/me/campaigns` : campagnes actives et non privées, avec la langue (code, nom, écriture, sens de lecture), le nombre de phrases et ce que j'ai déjà enregistré. Tout est calculé à la demande.
-- `GET /api/me/campaigns/{id}/todo?limit=10` : prochaines phrases que je n'ai pas encore enregistrées (maximum 50). Un envoi rejeté ou retiré ne compte pas, on peut recommencer. Plusieurs contributeurs peuvent lire la même phrase (voix différentes). 404 si la campagne est inconnue, fermée ou privée (même réponse, rien n'est révélé). Réservé à `ROLE_CONTRIBUTOR` et `ROLE_ADMIN`.
-- L'envoi d'audio refuse aussi les campagnes privées.
-- **Données de développement** : `20261006200000_seed_dev_wolof.xml`, contexte `dev` uniquement : la langue wolof (active, 3 validateurs minimum), une campagne ouverte et 10 phrases courtes. Ces phrases sont **à faire relire par un locuteur wolof** avant toute démonstration publique. Aucune statistique n'y est inventée.
-- Le contexte Liquibase `faker` est retiré de `application-dev.yml` : ses données aléatoires (langues absurdes, campagnes actives) étaient inutilisables.
-
-**Si la base locale existe déjà** (avec les données `faker` ou sans la graine), la recréer : `docker compose -f src/main/docker/postgresql.yml down -v` puis `up --wait`. Sinon Liquibase peut signaler un conflit d'identifiants.
-
-Non fait : les phrases ne sont pas mélangées ni réparties entre contributeurs, et aucune limite de débit n'existe sur ces endpoints.
-
-### 7. Catalogue public et Model Hub (6 octobre 2026)
-
-**API publique en lecture seule, sans connexion** (`PublicCatalogResource`, `GET /api/public/**` en `permitAll`) : `stats`, `languages`, `datasets` (recherche `q`, `language`, `plan`, `domain`, pagination), `datasets/{slug}`, `models` (`q`, `task`, `language`), `models/{id}`, `leaderboard` (`language`, `limit`). Les réponses sont des `record` écrits à la main (`PublicCatalogService`), jamais les entités : aucun chemin de fichier (`packagePath`, `audioPath`) ni identifiant interne inutile n'est exposé. Les saisies de recherche sont échappées (`%`, `_`).
-
-**Aucun chiffre stocké ni inventé** : statistiques, heures validées et compteurs par langue sont calculés à chaque appel (0 sans données). Un dataset sans version `PUBLISHED` est affiché « en collecte » avec ses compteurs réels. Le WER et le CER sont lus comme des pourcentages (0 à 100).
-
-**Publication de modèles** (`MyModelResource`, `ModelPublishingService`) : `POST/GET/DELETE /api/me/models`, rôles développeur et admin. Chacun ne supprime que les siens (404 sinon). Le lien du modèle doit être en **https** (pas de `javascript:` ni `data:`), la langue doit exister, la version de dataset d'entraînement doit être publiée. Le nom d'auteur affiché publiquement est le `displayName` du profil, qui vaut le login par défaut (pas encore modifiable).
-
-Données de développement : `20261006210000_seed_dev_dataset.xml` ajoute la fiche « Wolof : phrases du quotidien », sans version publiée.
-
-Non fait : téléchargement des datasets (liens signés), limitation de débit des endpoints publics, évaluation automatique (calcul du WER), modification du profil. Compilé, **jamais démarré** : les requêtes HQL (`EvaluationRepository.leaderboard`, `nulls last`) ne sont validées qu'au démarrage.
-
-## Authentification
-
-### Principe
-
-- **Jeton d'accès** : JWT court (15 min), renvoyé dans le corps (`id_token`) et l'en-tête `Authorization`. Le frontend le garde en mémoire, pas dans `localStorage`.
-- **Jeton de rafraîchissement** : valeur aléatoire de 256 bits, opaque, dans un cookie `refresh_token` (`HttpOnly`, `Secure`, `SameSite=Strict`, chemin `/api/authenticate`). Il n'est jamais dans le corps de la réponse.
-- **Stockage** : seul le hash SHA-256 est en base (`refresh_token`). Une fuite de la base ne permet pas de rejouer un jeton.
-- **Rotation** : chaque rafraîchissement révoque le jeton présenté et en émet un nouveau, dans la même « famille ».
-- **Détection de rejeu** : présenter un jeton déjà révoqué révoque toute la famille (vol probable). L'utilisateur légitime doit se reconnecter.
-- **CSRF** : le cookie est limité à `/api/authenticate` et `SameSite=Strict`, donc jamais envoyé depuis un autre site. Les autres routes utilisent l'en-tête `Authorization`, qu'un autre site ne peut pas forger.
-- **Fin de session** : changement ou réinitialisation du mot de passe révoque tous les jetons de l'utilisateur. Un utilisateur désactivé ne peut plus rafraîchir. Les jetons expirés sont purgés chaque nuit à 3 h 30.
-
-### Points d'entrée
-
-| Méthode et chemin                | Accès           | Réponse                                                                                               |
-| -------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------- |
-| `POST /api/authenticate`         | public          | 200 + `id_token` + cookie ; 401 si mauvais identifiants ; 429 + `Retry-After` si bloqué               |
-| `POST /api/authenticate/refresh` | public (cookie) | 200 + nouveau `id_token` + nouveau cookie ; 401 + cookie effacé si absent, invalide, expiré ou rejoué |
-| `POST /api/authenticate/logout`  | public (cookie) | 204, session révoquée, cookie effacé                                                                  |
-| `GET /api/authenticate`          | public          | 204 si connecté, 401 sinon                                                                            |
-| `POST /api/register`             | public          | 201 ; 400 si rôle absent ou interdit, ou consentement périmé                                          |
-| `GET /api/consent/current`       | public          | `{ "version": "2026-10-v1" }` : version à afficher puis renvoyer dans `consentVersion`                |
-
-Corps de `POST /api/register` (en plus des champs JHipster `login`, `email`, `password`, `firstName`, `lastName`, `langKey`) :
-
-```json
-{ "role": "CONTRIBUTOR", "consentVersion": "2026-10-v1" }
+```bash
+export MAVEN_OPTS="-Djavax.net.ssl.trustStoreType=Windows-ROOT"
 ```
 
-`role` vaut `CONTRIBUTOR`, `DEVELOPER` ou `ORGANIZATION`. `ROLE_ADMIN` ne peut jamais être demandé à l'inscription (validation du modèle et contrôle dans `UserService`).
+## Configuration
 
-### Limitation des tentatives de connexion
+Le profil `prod` refuse de démarrer si un secret manque. Aucun secret n'est versionné.
 
-En mémoire (un seul serveur, pas de cache distribué). Deux compteurs :
+| Variable d'environnement                                                            | Rôle                                                                                                              |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64SECRET`                                 | Secret de signature des JWT (Base64, 64 octets minimum). Sert aussi à dériver la clé des liens de téléchargement. |
+| `AFRIVOX_ADMIN_PASSWORD_HASH`                                                       | Hash BCrypt du mot de passe du compte `admin` initial.                                                            |
+| `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` | Accès PostgreSQL.                                                                                                 |
 
-- par couple (adresse IP, identifiant), 5 échecs : freine la devinette d'un mot de passe sans permettre à un tiers de verrouiller le compte d'un autre depuis une autre adresse ;
-- par adresse IP, 30 échecs : freine le balayage de nombreux identifiants.
+Propriétés de l'application (`application.*`, surchargeables par variable d'environnement) :
 
-Au-delà du seuil, 15 minutes de refus, même avec le bon mot de passe. Une connexion réussie remet à zéro le compteur du couple, pas celui de l'adresse. Un redémarrage remet tout à zéro.
+| Propriété                                                                | Défaut                 | Effet                                                                                            |
+| ------------------------------------------------------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------ |
+| `auto-activate-accounts`                                                 | `true`                 | Active les comptes à l'inscription, sans e-mail. À mettre à `false` quand un SMTP est configuré. |
+| `audio.storage-dir`                                                      | `data/audio`           | Dossier des enregistrements.                                                                     |
+| `audio.qc.*`                                                             | voir `application.yml` | Seuils des contrôles qualité (`enabled` pour les couper).                                        |
+| `datasets.storage-dir`                                                   | `data/datasets`        | Archives de référence des versions publiées.                                                     |
+| `datasets.link-ttl-seconds`                                              | `600`                  | Validité d'un lien de téléchargement administrateur.                                             |
+| `datasets.personalize-downloads`                                         | `true`                 | Sert une copie personnalisée (traçable) à chaque acheteur.                                       |
+| `contributor-trial.enabled`, `.max-recordings`, `.min-accept-rate`       | `true`, `10`, `0.7`    | Période d'essai des contributeurs.                                                               |
+| `security.login-max-attempts`, `.ip-max-attempts`, `.login-lock-seconds` | `5`, `30`, `900`       | Limitation des tentatives de connexion.                                                          |
+| `consent.current-version`                                                | `2026-10-v1`           | Version du consentement demandée à l'inscription.                                                |
 
-### Consentement
+Derrière nginx, `X-Forwarded-For` et `X-Forwarded-Proto` doivent être transmis, sinon la limitation des tentatives et les journaux voient l'adresse du proxy.
 
-À l'inscription, la version acceptée doit être `application.consent.current-version`. Elle est enregistrée dans `user_consent` (une ligne par utilisateur et par version, avec la date), supprimée en cascade avec l'utilisateur.
+## API
 
-### Attention côté frontend
+Toutes les routes sont sous `/api`. Les routes d'écriture et de lecture privée exigent un jeton `Authorization: Bearer <jwt>`.
 
-- Faire **un seul rafraîchissement à la fois** (« single-flight »). Deux appels simultanés avec le même cookie déclenchent la détection de rejeu et coupent la session.
-- Au démarrage de l'application, appeler `POST /api/authenticate/refresh` pour restaurer la session à partir du cookie.
-- Rafraîchir quand le jeton d'accès expire ou sur une réponse 401.
+| Préfixe                                              | Accès               | Contenu                                                                                                                       |
+| ---------------------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `/api/authenticate`, `/api/register`, `/api/account` | public / connecté   | Connexion, rafraîchissement, déconnexion, inscription (rôle et consentement), compte.                                         |
+| `/api/public/**`                                     | public              | Statistiques, langues, catalogue de datasets, modèles, classement, jeux de test, devis, téléchargements par lien signé.       |
+| `/api/catalog/**`                                    | connecté            | Aperçu des datasets (texte, extraits audio limités).                                                                          |
+| `/api/me/**`                                         | connecté (par rôle) | Mes campagnes, enregistrements, validation, crédits, profil contributeur, modèles, évaluations, demandes, achats, clés d'API. |
+| `/api/purchases/{id}/download-link`                  | acheteur            | Lien de téléchargement signé pour un achat.                                                                                   |
+| `/api/community/**`                                  | connecté            | Commentaires, signalements, notifications.                                                                                    |
+| `/api/admin/**`                                      | administrateur      | Gestion des utilisateurs, campagnes, datasets, demandes, crédits, modération, qualité, traçabilité.                           |
 
-## Rôles
+La documentation OpenAPI est disponible en développement ; elle est fermée en production. Une clé d'API (`X-API-Key`) n'ouvre que les quelques routes de sa portée : tout le reste est refusé.
 
-| Rôle                | Attribué                          | Usage                                      |
-| ------------------- | --------------------------------- | ------------------------------------------ |
-| `ROLE_USER`         | à tous les comptes inscrits       | base                                       |
-| `ROLE_CONTRIBUTOR`  | choix à l'inscription             | enregistrer, transcrire, valider           |
-| `ROLE_DEVELOPER`    | choix à l'inscription             | datasets, modèles, clés d'API              |
-| `ROLE_ORGANIZATION` | choix à l'inscription             | demandes de datasets sur mesure            |
-| `ROLE_ADMIN`        | compte `admin` initial uniquement | étudier les demandes, ouvrir les campagnes |
+## Rôles et sécurité
 
-Les rôles sont vérifiés côté serveur. Les routes `/api/admin/**` exigent `ROLE_ADMIN`.
+| Rôle                | Attribué                  | Usage                         |
+| ------------------- | ------------------------- | ----------------------------- |
+| `ROLE_USER`         | tous les comptes          | base                          |
+| `ROLE_CONTRIBUTOR`  | choix à l'inscription     | enregistrer, valider          |
+| `ROLE_DEVELOPER`    | choix à l'inscription     | datasets, modèles, clés d'API |
+| `ROLE_ORGANIZATION` | choix à l'inscription     | demandes sur mesure, achats   |
+| `ROLE_ADMIN`        | compte initial uniquement | administration                |
 
-## Dépendances et licences
+Points de sécurité :
 
-Contrainte du règlement : licences permissives seulement (MIT, Apache 2.0, BSD). **L'inventaire complet n'est pas encore fait** ; il sera établi à la fin (décision du 5 octobre 2026). Mouvements de dépendances à y reporter :
+- mots de passe hachés (BCrypt), 8 caractères minimum ;
+- jeton d'accès gardé en mémoire côté navigateur, jeton de rafraîchissement en cookie `HttpOnly`, `Secure`, `SameSite=Strict`, stocké haché ;
+- limitation des tentatives de connexion par identifiant et par adresse ;
+- rôles vérifiés côté serveur, refus par défaut sur les routes non déclarées ;
+- fichiers audio identifiés par leur contenu, nom généré par le serveur ;
+- liens de téléchargement signés (HMAC) et expirants ;
+- clés d'API : seul le hash SHA-256 est stocké, affichage unique, révocation immédiate ;
+- transcriptions de référence du classement jamais exposées.
 
-| Action  | Dépendance                                                                                                                         | Licence    |
-| ------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| Ajoutée | `spring-boot-starter-log4j2` (Log4j 2.25.5 : `log4j-core`, `log4j-api`, `log4j-slf4j2-impl`, `log4j-jul`)                          | Apache 2.0 |
-| Retirée | `spring-boot-starter-logging` (Logback)                                                                                            | —          |
-| Retirée | `spring-boot-starter-cache`, `spring-boot-starter-hazelcast`, `hazelcast-hibernate53`, `hazelcast-spring`, `javax.cache:cache-api` | —          |
-| Retirée | `micrometer-registry-prometheus`                                                                                                   | —          |
+## Données sur disque
 
-Question toujours à poser par écrit à cadev@systalink.com : les bibliothèques non modifiées sous licence double ou à copyleft faible sont-elles acceptées ?
+| Dossier         | Contenu                                     | À sauvegarder |
+| --------------- | ------------------------------------------- | ------------- |
+| `data/audio`    | Enregistrements des contributeurs           | oui           |
+| `data/datasets` | Archives de référence des versions publiées | oui           |
 
-## Tests
+Ces dossiers sont ignorés par Git. En production, ce sont des volumes Docker nommés.
 
-- **Tests unitaires** (`./mvnw test`) : 33 passaient après le nettoyage (cache, Log4j2, monitoring).
-- **Tests d'intégration** (`./mvnw verify`) : exigent Docker Desktop (Testcontainers PostgreSQL).
-- **Non exécutés à ce jour** : tout ce qui a été écrit pour l'authentification. À lancer avant de commiter :
-  - nouveaux tests unitaires `LoginAttemptServiceTest` et `RefreshTokenServiceTest` ;
-  - nouveaux cas d'intégration dans `AuthenticateControllerIT` (cookie, rotation, rejeu, déconnexion, blocage) et `AccountResourceIT` (rôle, consentement) ;
-  - `AccountResourceIT` existant, modifié pour fournir rôle et consentement ;
-  - `AuthenticationIntegrationTest` (contexte de sécurité sans base), qui charge maintenant `AuthenticationTestBeans`.
+## Déploiement
 
-Aucun résultat n'est affiché ici tant qu'ils n'ont pas tourné.
+Le dossier [`deploy/`](deploy/README.md) contient la pile complète pour un serveur Linux : Docker Compose (PostgreSQL, API, nginx, certbot), HTTPS Let's Encrypt, sauvegardes et instructions pas à pas.
 
-## Reste à faire
+## Client Python et scripts
 
-Dans l'ordre du planning (semaine 1, jusqu'au 11 octobre) :
+- [`clients/python`](clients/python/README.md) : bibliothèque et ligne de commande `afrivox` (téléchargement, soumission au classement, publication de modèles) avec une clé d'API. Aucune dépendance.
+- `scripts/dev/` : import de données de test vers un serveur **local** uniquement. Les jeux de données source ne sont pas dans le dépôt.
+- `scripts/licenses/generate.mjs` : génère l'inventaire des licences.
 
-1. Lancer les tests (`./mvnw verify` avec Docker) et corriger ce qui casse, puis commiter.
-2. Frontend Angular (PWA, mobile d'abord, droite à gauche) : connexion, inscription.
-3. ~~Entités métier~~ générées (voir journal 4). Reste : envoi audio avec validation du type et de la taille, stockage sur disque, endpoints « mes enregistrements », adaptation des tests générés.
-4. Premier déploiement sur Datacloud : Docker Compose (API, PostgreSQL, nginx), HTTPS Let's Encrypt.
-5. Fin du projet : inventaire des licences, schéma d'architecture, journal des décisions, déclaration de l'usage de l'IA, question licences à Systalink.
+## Structure du dépôt
+
+```
+AfriVox/
+├── src/main/java/…       code de l'API
+├── src/main/resources/   configuration, migrations Liquibase
+├── deploy/               Docker Compose, nginx, sauvegardes
+├── clients/python/       client Python et CLI
+├── scripts/              import de données de test, inventaire des licences
+├── docs/                 politique de licences
+├── afrivox.jdl           modèle de données d'origine (JHipster)
+└── LICENSES-THIRD-PARTY.md
+```
+
+Le fichier `afrivox.jdl` a servi à générer les entités. Ne pas relancer la génération JHipster complète : elle écraserait les modifications faites depuis. Pour ajouter une entité, utiliser `jhipster jdl afrivox.jdl --ignore-application --skip-git` puis relire le `git diff`.
+
+## Licences
+
+Le projet n'utilise que des dépendances sous licence permissive (MIT, Apache 2.0, BSD…). L'inventaire complet est dans [`LICENSES-THIRD-PARTY.md`](LICENSES-THIRD-PARTY.md), généré par `scripts/licenses/generate.mjs` ; la politique et les points restant à confirmer sont dans [`docs/LICENCES.md`](docs/LICENCES.md).

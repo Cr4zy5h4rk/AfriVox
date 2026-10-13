@@ -12,10 +12,7 @@ certbot : obtient et renouvelle le certificat Let's Encrypt (HTTPS obligatoire :
 Rien n'est publié sur Internet hormis les ports 80 et 443 de nginx. Les audios (`audio`), les archives de datasets
 (`datasets`) et la base (`dbdata`) sont des **volumes Docker nommés** : ils survivent à une reconstruction des images.
 
-> **Statut (12 oct. 2026)** : validé **en local seulement**. Les deux images se construisent (backend 368 Mo, web
-> 50 Mo) ; la base et l'API démarrent en profil `prod` (Liquibase sur base vide : 52 changements, compte `admin`
-> créé, API « healthy » en ~25 s, `/api/admin` refuse sans jeton, Swagger fermé). **Pas encore exécuté** : nginx,
-> Let's Encrypt, le déploiement sur le serveur. Le premier déploiement réel sert de test ; voir « Vérifications ».
+> Après le premier démarrage sur le serveur, suivre la section « Vérifications après démarrage ».
 
 ## 1. Préparer le serveur
 

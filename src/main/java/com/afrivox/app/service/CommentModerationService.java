@@ -3,9 +3,11 @@ package com.afrivox.app.service;
 import com.afrivox.app.domain.CommentReport;
 import com.afrivox.app.domain.MlModel;
 import com.afrivox.app.domain.ModelComment;
+import com.afrivox.app.domain.Project;
 import com.afrivox.app.repository.CommentReportRepository;
 import com.afrivox.app.repository.MlModelRepository;
 import com.afrivox.app.repository.ModelCommentRepository;
+import com.afrivox.app.repository.ProjectRepository;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,6 +31,8 @@ public class CommentModerationService {
         Long commentId,
         Long modelId,
         String modelName,
+        Long projectId,
+        String projectName,
         String authorName,
         String body,
         Instant createdAt,
@@ -40,15 +44,18 @@ public class CommentModerationService {
     private final CommentReportRepository reportRepository;
     private final ModelCommentRepository commentRepository;
     private final MlModelRepository modelRepository;
+    private final ProjectRepository projectRepository;
 
     public CommentModerationService(
         CommentReportRepository reportRepository,
         ModelCommentRepository commentRepository,
-        MlModelRepository modelRepository
+        MlModelRepository modelRepository,
+        ProjectRepository projectRepository
     ) {
         this.reportRepository = reportRepository;
         this.commentRepository = commentRepository;
         this.modelRepository = modelRepository;
+        this.projectRepository = projectRepository;
     }
 
     @Transactional(readOnly = true)
@@ -64,10 +71,18 @@ public class CommentModerationService {
         Map<Long, ModelComment> comments = new HashMap<>();
         commentRepository.findAllById(byComment.keySet()).forEach(c -> comments.put(c.getId(), c));
         Set<Long> modelIds = new java.util.HashSet<>();
-        comments.values().forEach(c -> modelIds.add(c.getModelId()));
+        Set<Long> projectIds = new java.util.HashSet<>();
+        comments.values().forEach(c -> {
+            if (c.getModelId() != null) modelIds.add(c.getModelId());
+            if (c.getProjectId() != null) projectIds.add(c.getProjectId());
+        });
         Map<Long, String> modelNames = new HashMap<>();
         for (MlModel m : modelRepository.findAllById(modelIds)) {
             modelNames.put(m.getId(), m.getName());
+        }
+        Map<Long, String> projectNames = new HashMap<>();
+        for (Project p : projectRepository.findAllById(projectIds)) {
+            projectNames.put(p.getId(), p.getTitle());
         }
         List<ReportedComment> result = new ArrayList<>();
         for (Map.Entry<Long, List<CommentReport>> e : byComment.entrySet()) {
@@ -80,7 +95,9 @@ public class CommentModerationService {
                 new ReportedComment(
                     c.getId(),
                     c.getModelId(),
-                    modelNames.get(c.getModelId()),
+                    c.getModelId() == null ? null : modelNames.get(c.getModelId()),
+                    c.getProjectId(),
+                    c.getProjectId() == null ? null : projectNames.get(c.getProjectId()),
                     c.getAuthor().getDisplayName(),
                     c.getBody(),
                     c.getCreatedAt(),

@@ -59,6 +59,11 @@ public class SecurityConfiguration {
                     .requestMatchers("/api/me/recordings/**", "/api/me/campaigns/**", "/api/me/contributor/**", "/api/me/credits/**").hasAnyAuthority(AuthoritiesConstants.CONTRIBUTOR, AuthoritiesConstants.ADMIN)
                     // Publication de modèles : développeurs (et admin). Chacun ne gère que les siens.
                     .requestMatchers("/api/me/models/**").hasAnyAuthority(AuthoritiesConstants.DEVELOPER, AuthoritiesConstants.ADMIN)
+                    // Hub des développeurs : publier ses projets et régler son profil public (développeurs et admin).
+                    .requestMatchers("/api/me/projects/**", "/api/me/developer-profile/**").hasAnyAuthority(AuthoritiesConstants.DEVELOPER, AuthoritiesConstants.ADMIN)
+                    // Demande de contact envoyée à un développeur : organisations seulement (la lecture des demandes reçues
+                    // reste ouverte à tout compte connecté, le service ne rend que les siennes).
+                    .requestMatchers(HttpMethod.POST, "/api/community/developers/*/contact").hasAnyAuthority(AuthoritiesConstants.ORGANIZATION, AuthoritiesConstants.ADMIN)
                     // Validation par les pairs : contributeurs (et admin). Le service exige en plus une qualification dans la langue.
                     .requestMatchers("/api/me/validation/**").hasAnyAuthority(AuthoritiesConstants.CONTRIBUTOR, AuthoritiesConstants.ADMIN)
                     // Ancien lien direct, sans achat ni licence : reserve a l'admin. Les autres passent par /api/purchases.

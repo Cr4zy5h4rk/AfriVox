@@ -40,11 +40,22 @@ import {
   reviewEverything,
 } from './lib.mjs';
 
-const SEREER_DIR = process.env.SEREER_DIR;
+const SEREER_DIR = process.env.CORPUS_DIR ?? process.env.SEREER_DIR; // dossier "speech_dataset" du corpus choisi
 const DRY_RUN = process.argv.includes('--dry-run');
-const LANGUAGE = { code: 'srr', name: 'Sereer', script: 'LATIN', direction: 'LTR', minValidators: 3 };
-const DOMAIN = 'agriculture';
-const CAMPAIGN_TITLE = 'Corpus de test (sereer)';
+
+/**
+ * Profils de corpus : meme format (Transcriber .trs + .wav), seule la langue change. Choisi par CORPUS=<profil> (defaut : sereer).
+ * `prefix` sert aux noms de fichiers du corpus (srr_4110.wav) et aux comptes (imp_srr_...).
+ */
+const PROFILES = {
+  sereer: { code: 'srr', name: 'Sereer', prefix: 'srr', label: 'sereer', domain: 'agriculture' },
+  pulaar: { code: 'fuc', name: 'Pulaar', prefix: 'fuc', label: 'pulaar', domain: 'agriculture' },
+};
+const PROFILE = PROFILES[process.env.CORPUS ?? 'sereer'];
+if (!PROFILE) fail(`CORPUS inconnu : ${process.env.CORPUS} (attendu : ${Object.keys(PROFILES).join(', ')}).`);
+const LANGUAGE = { code: PROFILE.code, name: PROFILE.name, script: 'LATIN', direction: 'LTR', minValidators: 3 };
+const DOMAIN = PROFILE.domain;
+const CAMPAIGN_TITLE = `Corpus de test (${PROFILE.label})`;
 
 /** Echantillon : TARGET segments pris dans FILES fichiers (a peu pres le meme nombre dans chacun, espaces regulierement). */
 const TARGET = 2000;
@@ -57,9 +68,9 @@ const MAX_SEC = 30;
 
 /** Datasets a creer (tarifs = valeurs de TEST). Emboites : Starter < Plus < Pro. */
 const DATASETS = [
-  { slug: 'agriculture-sereer-starter', title: 'Agriculture (sereer) - Starter', domain: DOMAIN, plan: 'STARTER', max: 30 },
-  { slug: 'agriculture-sereer-plus', title: 'Agriculture (sereer) - Plus', domain: DOMAIN, plan: 'PLUS', max: 300, price: 30000 },
-  { slug: 'agriculture-sereer-pro', title: 'Agriculture (sereer) - Pro', domain: DOMAIN, plan: 'PRO', max: null, price: 50000 },
+  { slug: `${DOMAIN}-${PROFILE.label}-starter`, title: `${DOMAIN[0].toUpperCase()}${DOMAIN.slice(1)} (${PROFILE.label}) - Starter`, domain: DOMAIN, plan: 'STARTER', max: 30 },
+  { slug: `${DOMAIN}-${PROFILE.label}-plus`, title: `${DOMAIN[0].toUpperCase()}${DOMAIN.slice(1)} (${PROFILE.label}) - Plus`, domain: DOMAIN, plan: 'PLUS', max: 300, price: 30000 },
+  { slug: `${DOMAIN}-${PROFILE.label}-pro`, title: `${DOMAIN[0].toUpperCase()}${DOMAIN.slice(1)} (${PROFILE.label}) - Pro`, domain: DOMAIN, plan: 'PRO', max: null, price: 50000 },
 ];
 
 const publishAll = () =>
@@ -151,10 +162,12 @@ function evenly(list, count) {
 async function loadSample() {
   const candidates = [];
   for (const d of (await readdir(SEREER_DIR, { withFileTypes: true })).filter((e) => e.isDirectory())) {
-    for (const f of (await readdir(path.join(SEREER_DIR, d.name))).filter((n) => n.endsWith('.trs')).sort()) {
+    const inDir = await readdir(path.join(SEREER_DIR, d.name));
+    // Certains corpus ont plus de transcriptions que d'audios : on ne garde que les .trs dont le .wav existe.
+    for (const f of inDir.filter((n) => n.endsWith('.trs') && inDir.includes(n.replace(/\.trs$/, '.wav'))).sort()) {
       const segments = segmentsOf(await readFile(path.join(SEREER_DIR, d.name, f), 'utf8'));
       const base = f.replace(/\.trs$/, '');
-      candidates.push({ base, dir: path.join(SEREER_DIR, d.name), segments, id: base.replace(/^srr_/, '') });
+      candidates.push({ base, dir: path.join(SEREER_DIR, d.name), segments, id: base.replace(new RegExp(`^${PROFILE.prefix}_`), '') });
     }
   }
   candidates.sort((a, b) => a.base.localeCompare(b.base));
@@ -181,7 +194,7 @@ function describe(sample) {
 }
 
 /** Identifiant de compte d'un locuteur : imp_srr_<numero du fichier>_<etiquette>, ex. imp_srr_33210_spk1. */
-const loginOf = (file, speaker) => `imp_srr_${file.id}_${speaker}`.replace(/[^A-Za-z0-9_]/g, '_').slice(0, 50);
+const loginOf = (file, speaker) => `imp_${PROFILE.prefix}_${file.id}_${speaker}`.replace(/[^A-Za-z0-9_]/g, '_').slice(0, 50);
 
 async function ensureLanguage(admin) {
   const existing = (await admin.call('GET', '/api/languages')).json.find((l) => l.code === LANGUAGE.code);
@@ -210,7 +223,7 @@ async function main() {
     await reviewEverything(LANGUAGE.code);
     return publishAll();
   }
-  if (!SEREER_DIR) fail('Definir SEREER_DIR (dossier "speech_dataset" du corpus sereer).');
+  if (!SEREER_DIR) fail(`Definir CORPUS_DIR (dossier "speech_dataset" du corpus ${PROFILE.label}).`);
 
   console.log('\n1. Lecture du corpus et choix de l\'echantillon');
   const sample = await loadSample();
@@ -283,8 +296,11 @@ async function main() {
       form.set('promptId', String(promptOf.get(`${f.base}#${s.start}`)));
       form.set('durationMs', String(durationMs));
       form.set('file', new Blob([audio], { type: 'audio/wav' }), `${f.base}_${s.start}.wav`);
-      const { status } = await user.call('POST', '/api/me/recordings', undefined, { form, allow: [409] });
-      if (status !== 409) sent++;
+      const { status, json } = await user.call('POST', '/api/me/recordings', undefined, { form, allow: [400, 409] });
+      // Un refus des controles qualite (error.qc*) est un resultat normal : on saute le segment.
+      if (status === 400) {
+        if (!JSON.stringify(json).includes('error.qc')) throw new Error(`envoi refuse : ${JSON.stringify(json).slice(0, 200)}`);
+      } else if (status !== 409) sent++;
     }
     console.log(`  ${f.base} : ${f.segments.length} segments (${sent} envoyes au total)`);
   }

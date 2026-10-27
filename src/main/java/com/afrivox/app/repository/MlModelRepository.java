@@ -16,6 +16,8 @@ import org.springframework.stereotype.Repository;
 public interface MlModelRepository extends JpaRepository<MlModel, Long>, JpaSpecificationExecutor<MlModel> {
     List<MlModel> findAllByOwnerIdOrderByCreatedAtDesc(Long ownerId);
 
+    long countByOwnerId(Long ownerId);
+
     default Optional<MlModel> findOneWithEagerRelationships(Long id) {
         return this.findOneWithToOneRelationships(id);
     }

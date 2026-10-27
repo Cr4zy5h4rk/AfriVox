@@ -28,6 +28,17 @@ public interface ModelCommentRepository extends JpaRepository<ModelComment, Long
     )
     List<ModelComment> findReplies(@Param("parentIds") Collection<Long> parentIds);
 
+    /** Commentaires de premier niveau d'un projet, du plus recent au plus ancien. */
+    @Query(
+        value = "select c from ModelComment c join fetch c.author a left join fetch a.user " +
+            "where c.projectId = :projectId and c.parentId is null order by c.createdAt desc, c.id desc",
+        countQuery = "select count(c) from ModelComment c where c.projectId = :projectId and c.parentId is null"
+    )
+    Page<ModelComment> findForProject(@Param("projectId") Long projectId, Pageable pageable);
+
+    /** Tous les commentaires d'un projet, reponses comprises. */
+    long countByProjectId(Long projectId);
+
     /** Tous les commentaires d'un modele, reponses comprises. */
     long countByModelId(Long modelId);
 

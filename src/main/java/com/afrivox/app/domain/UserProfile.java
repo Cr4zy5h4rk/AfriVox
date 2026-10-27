@@ -81,6 +81,19 @@ public class UserProfile implements Serializable {
     @Column(name = "demographics_answered_at")
     private Instant demographicsAnsweredAt;
 
+    /** Profil visible de tous (annuaire des developpeurs). Desactive par defaut : rien n'est public sans choix explicite. */
+    @Column(name = "public_profile", nullable = false)
+    private boolean publicProfile = false;
+
+    /** Accepte les demandes de contact des organisations ; sans effet si le profil n'est pas public. */
+    @Column(name = "open_to_work", nullable = false)
+    private boolean openToWork = false;
+
+    /** Lien https choisi par la personne (site, depot, profil professionnel). */
+    @Size(max = 300)
+    @Column(name = "profile_url", length = 300)
+    private String profileUrl;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(unique = true)
     private User user;
@@ -198,6 +211,30 @@ public class UserProfile implements Serializable {
 
     public void setOtherLanguages(String otherLanguages) {
         this.otherLanguages = otherLanguages;
+    }
+
+    public boolean isPublicProfile() {
+        return publicProfile;
+    }
+
+    public void setPublicProfile(boolean publicProfile) {
+        this.publicProfile = publicProfile;
+    }
+
+    public boolean isOpenToWork() {
+        return openToWork;
+    }
+
+    public void setOpenToWork(boolean openToWork) {
+        this.openToWork = openToWork;
+    }
+
+    public String getProfileUrl() {
+        return profileUrl;
+    }
+
+    public void setProfileUrl(String profileUrl) {
+        this.profileUrl = profileUrl;
     }
 
     public Instant getDemographicsAnsweredAt() {

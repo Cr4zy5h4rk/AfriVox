@@ -17,6 +17,17 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, Long> 
     /** Profil rattache a un compte (via son login). */
     Optional<UserProfile> findOneByUserLogin(String login);
 
+    /** Annuaire des developpeurs : seulement les profils que leur titulaire a rendus publics. */
+    @Query(
+        value = "select p from UserProfile p where p.publicProfile = true " +
+            "and (:q is null or lower(p.displayName) like :q escape '\\' or lower(coalesce(p.bio, '')) like :q escape '\\') " +
+            "and (:openOnly = false or p.openToWork = true)",
+        countQuery = "select count(p) from UserProfile p where p.publicProfile = true " +
+            "and (:q is null or lower(p.displayName) like :q escape '\\' or lower(coalesce(p.bio, '')) like :q escape '\\') " +
+            "and (:openOnly = false or p.openToWork = true)"
+    )
+    Page<UserProfile> searchPublic(@Param("q") String q, @Param("openOnly") boolean openOnly, Pageable pageable);
+
     /** Contributeurs par etat (periode d'essai), les plus recents d'abord ; {@code status} nul = tous les etats. */
     @Query(
         value = "select p from UserProfile p left join fetch p.user where (:status is null or p.contributorStatus = :status) " +

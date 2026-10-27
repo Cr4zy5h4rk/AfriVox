@@ -60,6 +60,7 @@ export class Api {
   async login(username, password) {
     const { json } = await this.call('POST', '/api/authenticate', { username, password });
     this.token = json.id_token;
+    this.username = username;
   }
 }
 
@@ -152,6 +153,7 @@ export async function reviewEverything(languageCode) {
   const clients = await Promise.all(VALIDATORS.map((v) => loggedIn(v, IMPORT_PASSWORD)));
   let active = clients;
   let reviews = 0;
+  let loggedAt = Date.now();
   while (active.length > 0) {
     const stillActive = [];
     for (const api of active) {
@@ -168,9 +170,10 @@ export async function reviewEverything(languageCode) {
       stillActive.push(api);
     }
     active = stillActive;
-    // Les jetons durent 15 min : sur une longue relecture on se reconnecte regulierement.
-    if (reviews > 0 && reviews % 1500 < VALIDATORS.length) {
-      active = await Promise.all(active.map((_, i) => loggedIn(VALIDATORS[i], IMPORT_PASSWORD)));
+    // Les jetons durent 15 min : on se reconnecte toutes les 10 min (selon l'horloge, pas selon le nombre d'avis).
+    if (active.length > 0 && Date.now() - loggedAt > 10 * 60 * 1000) {
+      active = await Promise.all(active.map((api) => loggedIn(api.username, IMPORT_PASSWORD)));
+      loggedAt = Date.now();
     }
   }
   console.log(`  ${reviews} avis enregistres`);

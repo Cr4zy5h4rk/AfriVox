@@ -109,6 +109,10 @@ public class UserProfileService {
                 target.setRegion(existing.getRegion());
                 target.setOtherLanguages(existing.getOtherLanguages());
                 target.setDemographicsAnsweredAt(existing.getDemographicsAnsweredAt());
+                // Choix de visibilite de la personne : un PUT du CRUD (admin) ne les modifie pas.
+                target.setPublicProfile(existing.isPublicProfile());
+                target.setOpenToWork(existing.isOpenToWork());
+                target.setProfileUrl(existing.getProfileUrl());
             });
         }
         if (target.getContributorStatus() == null) {

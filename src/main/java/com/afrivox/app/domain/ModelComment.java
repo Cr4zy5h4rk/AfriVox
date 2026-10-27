@@ -5,7 +5,10 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
 
-/** Commentaire d'un utilisateur sur la fiche d'un modele (section communaute). */
+/**
+ * Commentaire d'un utilisateur sur la fiche d'un modele ou d'un projet (section communaute) : exactement l'un des deux
+ * est renseigne (contrainte en base). Le nom de la classe date de l'epoque ou seuls les modeles se commentaient.
+ */
 @Entity
 @Table(name = "model_comment")
 public class ModelComment {
@@ -16,9 +19,13 @@ public class ModelComment {
     @Column(name = "id")
     private Long id;
 
-    @NotNull
-    @Column(name = "model_id", nullable = false)
+    /** Modele commente, ou {@code null} pour un commentaire de projet. */
+    @Column(name = "model_id")
     private Long modelId;
+
+    /** Projet commente, ou {@code null} pour un commentaire de modele. */
+    @Column(name = "project_id")
+    private Long projectId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "author_id", nullable = false)
@@ -39,9 +46,10 @@ public class ModelComment {
 
     protected ModelComment() {}
 
-    public ModelComment(Long modelId, UserProfile author, String body, Instant createdAt, Long parentId) {
+    public ModelComment(Long modelId, Long projectId, UserProfile author, String body, Instant createdAt, Long parentId) {
         this.parentId = parentId;
         this.modelId = modelId;
+        this.projectId = projectId;
         this.author = author;
         this.body = body;
         this.createdAt = createdAt;
@@ -57,6 +65,10 @@ public class ModelComment {
 
     public Long getModelId() {
         return modelId;
+    }
+
+    public Long getProjectId() {
+        return projectId;
     }
 
     public UserProfile getAuthor() {

@@ -192,7 +192,17 @@ async function main() {
   const promptIds = new Map(); // nom de fichier -> id de phrase
   for (const [source, list] of Object.entries(bySource)) {
     const title = `Corpus de test (${source})`;
-    if (existing.some((c) => c.title === title)) fail(`la campagne "${title}" existe deja : import deja fait ? (rien n'a ete envoye pour cette source)`);
+    const already = existing.find((c) => c.title === title);
+    if (already) {
+      // Reprise apres une panne : les phrases ont ete creees dans l'ordre du corpus, on les reapparie par rang.
+      const prompts = (await admin.call('GET', '/api/prompts?size=2000')).json
+        .filter((p) => p.campaign?.id === already.id)
+        .sort((a, b) => a.id - b.id);
+      if (prompts.length !== list.length) fail(`la campagne "${title}" existe deja avec ${prompts.length} phrases au lieu de ${list.length} : a corriger a la main.`);
+      list.forEach((r, i) => promptIds.set(r.filename, prompts[i].id));
+      console.log(`  ${title} : reprise (${list.length} phrases deja en base)`);
+      continue;
+    }
     const campaign = (
       await admin.call('POST', '/api/campaigns', {
         title,
@@ -220,15 +230,20 @@ async function main() {
     await completeTestProfile(user);
     await promoteTestContributor(`imp_${source}`);
     let sent = 0;
+    let refused = 0;
     for (const r of list) {
       const form = new FormData();
       form.set('promptId', String(promptIds.get(r.filename)));
       form.set('durationMs', String(r.durationMs));
       form.set('file', new Blob([r.audio], { type: 'audio/wav' }), r.filename);
-      const { status } = await user.call('POST', '/api/me/recordings', undefined, { form, allow: [409] });
-      if (status !== 409) sent++;
+      const { status, json } = await user.call('POST', '/api/me/recordings', undefined, { form, allow: [400, 409] });
+      // Un refus des controles qualite (error.qc*) est un resultat normal : on saute le fichier et on le compte.
+      if (status === 400) {
+        if (!JSON.stringify(json).includes('error.qc')) throw new Error(`envoi de ${r.filename} refuse : ${JSON.stringify(json).slice(0, 200)}`);
+        refused++;
+      } else if (status !== 409) sent++;
     }
-    console.log(`  imp_${source} : ${sent}/${list.length} enregistrements envoyes`);
+    console.log(`  imp_${source} : ${sent}/${list.length} enregistrements envoyes, ${refused} refuses par les controles qualite`);
   }
 
   console.log('\n5. Qualification des validateurs');

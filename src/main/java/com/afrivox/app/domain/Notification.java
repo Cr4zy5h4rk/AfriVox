@@ -32,6 +32,12 @@ public class Notification {
     @Column(name = "model_name", length = 120)
     private String modelName;
 
+    @Column(name = "project_id")
+    private Long projectId;
+
+    @Column(name = "project_name", length = 120)
+    private String projectName;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -40,7 +46,18 @@ public class Notification {
 
     protected Notification() {}
 
-    public Notification(UserProfile recipient, String type, String actorName, Long modelId, String modelName, Instant createdAt) {
+    public Notification(
+        UserProfile recipient,
+        String type,
+        String actorName,
+        Long modelId,
+        String modelName,
+        Long projectId,
+        String projectName,
+        Instant createdAt
+    ) {
+        this.projectId = projectId;
+        this.projectName = projectName;
         this.recipient = recipient;
         this.type = type;
         this.actorName = actorName;
@@ -71,6 +88,14 @@ public class Notification {
 
     public String getModelName() {
         return modelName;
+    }
+
+    public Long getProjectId() {
+        return projectId;
+    }
+
+    public String getProjectName() {
+        return projectName;
     }
 
     public Instant getCreatedAt() {

@@ -60,6 +60,22 @@ public class ModelCommentResource {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.add(modelId, request.body(), request.parentId()));
     }
 
+    // ---- Memes commentaires sur les projets du hub ----
+
+    @GetMapping("/public/projects/{projectId}/comments")
+    public CommentPage listForProject(
+        @PathVariable Long projectId,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "20") int size
+    ) {
+        return service.listForProject(projectId, page, size);
+    }
+
+    @PostMapping("/community/projects/{projectId}/comments")
+    public ResponseEntity<CommentView> addToProject(@PathVariable Long projectId, @Valid @RequestBody CommentRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.addToProject(projectId, request.body(), request.parentId()));
+    }
+
     @DeleteMapping("/community/comments/{commentId}")
     public ResponseEntity<Void> delete(@PathVariable Long commentId) {
         return service.delete(commentId) ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();

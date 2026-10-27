@@ -3,10 +3,12 @@ package com.afrivox.app.service;
 import com.afrivox.app.domain.CommentReport;
 import com.afrivox.app.domain.MlModel;
 import com.afrivox.app.domain.ModelComment;
+import com.afrivox.app.domain.Project;
 import com.afrivox.app.domain.UserProfile;
 import com.afrivox.app.repository.CommentReportRepository;
 import com.afrivox.app.repository.MlModelRepository;
 import com.afrivox.app.repository.ModelCommentRepository;
+import com.afrivox.app.repository.ProjectRepository;
 import com.afrivox.app.security.AuthoritiesConstants;
 import com.afrivox.app.security.SecurityUtils;
 import com.afrivox.app.web.rest.errors.BadRequestAlertException;
@@ -23,12 +25,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Section communaute d'un modele : commentaires lisibles sans compte, ecrits par tout compte connecte, avec un seul
+ * Section communaute d'un modele ou d'un projet : commentaires lisibles sans compte, ecrits par tout compte connecte, avec un seul
  * niveau de reponses. Le texte est stocke tel quel et affiche comme du texte par le front (jamais comme du HTML).
  * <p>
  * Moderation : l'auteur supprime les siens (et les reponses partent avec le commentaire), l'admin supprime n'importe
  * lequel ; tout utilisateur peut signaler un commentaire, l'admin traite la file ({@link CommentModerationService}).
- * Notifications : le proprietaire du modele est prevenu d'un commentaire, l'auteur d'un commentaire d'une reponse.
+ * Notifications : le proprietaire du modele (ou du projet) est prevenu d'un commentaire, l'auteur d'un commentaire d'une reponse.
  */
 @Service
 @Transactional
@@ -58,6 +60,7 @@ public class ModelCommentService {
     private final ModelCommentRepository commentRepository;
     private final CommentReportRepository reportRepository;
     private final MlModelRepository modelRepository;
+    private final ProjectRepository projectRepository;
     private final UserProfileService userProfileService;
     private final NotificationService notifications;
 
@@ -65,12 +68,14 @@ public class ModelCommentService {
         ModelCommentRepository commentRepository,
         CommentReportRepository reportRepository,
         MlModelRepository modelRepository,
+        ProjectRepository projectRepository,
         UserProfileService userProfileService,
         NotificationService notifications
     ) {
         this.commentRepository = commentRepository;
         this.reportRepository = reportRepository;
         this.modelRepository = modelRepository;
+        this.projectRepository = projectRepository;
         this.userProfileService = userProfileService;
         this.notifications = notifications;
     }
@@ -80,10 +85,24 @@ public class ModelCommentService {
         if (!modelRepository.existsById(modelId)) {
             throw new BadRequestAlertException("Modele introuvable", ENTITY_NAME, "modelnotfound");
         }
-        Page<ModelComment> result = commentRepository.findForModel(
-            modelId,
-            PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, MAX_PAGE_SIZE)))
-        );
+        Page<ModelComment> result = commentRepository.findForModel(modelId, pageRequest(page, size));
+        return toPage(result, commentRepository.countByModelId(modelId));
+    }
+
+    @Transactional(readOnly = true)
+    public CommentPage listForProject(Long projectId, int page, int size) {
+        if (!projectRepository.existsById(projectId)) {
+            throw new BadRequestAlertException("Projet introuvable", ENTITY_NAME, "projectnotfound");
+        }
+        Page<ModelComment> result = commentRepository.findForProject(projectId, pageRequest(page, size));
+        return toPage(result, commentRepository.countByProjectId(projectId));
+    }
+
+    private static PageRequest pageRequest(int page, int size) {
+        return PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, MAX_PAGE_SIZE)));
+    }
+
+    private CommentPage toPage(Page<ModelComment> result, long totalWithReplies) {
         // Les reponses des commentaires de la page, en une seule requete.
         List<Long> ids = result.getContent().stream().map(ModelComment::getId).toList();
         Map<Long, List<ModelComment>> repliesByParent = ids.isEmpty()
@@ -106,24 +125,42 @@ public class ModelCommentService {
             result.getSize(),
             result.getTotalElements(),
             result.getTotalPages(),
-            commentRepository.countByModelId(modelId)
+            totalWithReplies
         );
     }
 
     /** Pas de {@code readOnly} : le profil de l'auteur peut etre cree au premier usage. */
     public CommentView add(Long modelId, String body, Long parentId) {
+        MlModel model = modelRepository
+            .findById(modelId)
+            .orElseThrow(() -> new BadRequestAlertException("Modele introuvable", ENTITY_NAME, "modelnotfound"));
+        return post(new Target(modelId, null, model.getName(), model.getOwner()), body, parentId);
+    }
+
+    public CommentView addToProject(Long projectId, String body, Long parentId) {
+        Project project = projectRepository
+            .findWithOwner(projectId)
+            .orElseThrow(() -> new BadRequestAlertException("Projet introuvable", ENTITY_NAME, "projectnotfound"));
+        return post(new Target(null, projectId, project.getTitle(), project.getOwner()), body, parentId);
+    }
+
+    /** Cible d'un commentaire : un modele ou un projet, avec son nom et son proprietaire (a prevenir). */
+    private record Target(Long modelId, Long projectId, String name, UserProfile owner) {
+        boolean sameAs(ModelComment c) {
+            return modelId != null ? modelId.equals(c.getModelId()) : projectId.equals(c.getProjectId());
+        }
+    }
+
+    private CommentView post(Target target, String body, Long parentId) {
         String text = body == null ? "" : body.strip();
         if (text.isEmpty() || text.length() > MAX_LENGTH) {
             throw new BadRequestAlertException("Le commentaire doit faire entre 1 et 1000 caracteres", ENTITY_NAME, "invalidcomment");
         }
-        MlModel model = modelRepository
-            .findById(modelId)
-            .orElseThrow(() -> new BadRequestAlertException("Modele introuvable", ENTITY_NAME, "modelnotfound"));
         ModelComment parent = null;
         if (parentId != null) {
             parent = commentRepository.findById(parentId).orElse(null);
-            // Une reponse se rattache a un commentaire de premier niveau du meme modele (pas de fil de fil).
-            if (parent == null || !parent.getModelId().equals(modelId) || parent.getParentId() != null) {
+            // Une reponse se rattache a un commentaire de premier niveau de la meme cible (pas de fil de fil).
+            if (parent == null || !target.sameAs(parent) || parent.getParentId() != null) {
                 throw new BadRequestAlertException("Commentaire parent invalide", ENTITY_NAME, "invalidparent");
             }
         }
@@ -133,19 +170,22 @@ public class ModelCommentService {
         ) {
             throw new BadRequestAlertException("Trop de commentaires, reessayez dans une minute", ENTITY_NAME, "toomanycomments");
         }
-        ModelComment saved = commentRepository.save(new ModelComment(modelId, author, text, Instant.now(), parentId));
+        ModelComment saved = commentRepository.save(
+            new ModelComment(target.modelId(), target.projectId(), author, text, Instant.now(), parentId)
+        );
 
-        // Notifications : l'auteur du commentaire parent, puis le proprietaire du modele (sauf si c'est la meme personne
-        // ou l'auteur lui-meme).
-        UserProfile owner = model.getOwner();
+        // Notifications : l'auteur du commentaire parent, puis le proprietaire de la cible (sauf si c'est la meme
+        // personne ou l'auteur lui-meme).
+        boolean onProject = target.projectId() != null;
+        UserProfile owner = target.owner();
         UserProfile parentAuthor = parent == null ? null : parent.getAuthor();
         if (parentAuthor != null && !parentAuthor.getId().equals(author.getId())) {
-            notifications.notify(parentAuthor, NotificationService.COMMENT_REPLY, author.getDisplayName(), modelId, model.getName());
+            notifyTarget(parentAuthor, onProject ? NotificationService.PROJECT_REPLY : NotificationService.COMMENT_REPLY, author, target);
         }
         if (
             owner != null && !owner.getId().equals(author.getId()) && (parentAuthor == null || !parentAuthor.getId().equals(owner.getId()))
         ) {
-            notifications.notify(owner, NotificationService.MODEL_COMMENT, author.getDisplayName(), modelId, model.getName());
+            notifyTarget(owner, onProject ? NotificationService.PROJECT_COMMENT : NotificationService.MODEL_COMMENT, author, target);
         }
         return new CommentView(
             saved.getId(),
@@ -157,6 +197,14 @@ public class ModelCommentService {
             true,
             List.of()
         );
+    }
+
+    private void notifyTarget(UserProfile recipient, String type, UserProfile author, Target target) {
+        if (target.projectId() != null) {
+            notifications.notifyProject(recipient, type, author.getDisplayName(), target.projectId(), target.name());
+        } else {
+            notifications.notify(recipient, type, author.getDisplayName(), target.modelId(), target.name());
+        }
     }
 
     /** Supprime un commentaire (ses reponses partent avec lui) ; faux s'il n'existe pas ou n'est pas a l'utilisateur. */

@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Hub des developpeurs : projets publies, discussion (les commentaires existants servent aussi aux projets),
+        profil public facultatif et prise de contact par la plateforme.
+    -->
+
+    <!-- Projets publies par les developpeurs (supprimes avec leur auteur ; le modele lie est facultatif). -->
+    <changeSet id="20261027100000-1" author="afrivox">
+        <createTable tableName="project">
+            <column name="id" type="bigint">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="owner_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="title" type="varchar(120)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="summary" type="varchar(1000)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="repo_url" type="varchar(300)"/>
+            <column name="demo_url" type="varchar(300)"/>
+            <column name="language_code" type="varchar(10)"/>
+            <column name="tags" type="varchar(200)"/>
+            <column name="model_id" type="bigint"/>
+            <column name="created_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint baseColumnNames="owner_id" baseTableName="project"
+                                 constraintName="fk_project__owner_id"
+                                 referencedColumnNames="id" referencedTableName="user_profile" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseColumnNames="model_id" baseTableName="project"
+                                 constraintName="fk_project__model_id"
+                                 referencedColumnNames="id" referencedTableName="ml_model" onDelete="SET NULL"/>
+        <createIndex tableName="project" indexName="idx_project__created">
+            <column name="created_at"/>
+        </createIndex>
+        <createIndex tableName="project" indexName="idx_project__owner">
+            <column name="owner_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!--
+        Les commentaires de la communaute portent soit sur un modele, soit sur un projet : exactement l'un des deux.
+        Chaque cle etrangere garde sa suppression en cascade (le commentaire part avec sa cible).
+    -->
+    <changeSet id="20261027100000-2" author="afrivox">
+        <dropNotNullConstraint tableName="model_comment" columnName="model_id" columnDataType="bigint"/>
+        <addColumn tableName="model_comment">
+            <column name="project_id" type="bigint"/>
+        </addColumn>
+        <addForeignKeyConstraint baseColumnNames="project_id" baseTableName="model_comment"
+                                 constraintName="fk_model_comment__project_id"
+                                 referencedColumnNames="id" referencedTableName="project" onDelete="CASCADE"/>
+        <createIndex tableName="model_comment" indexName="idx_model_comment__project_created">
+            <column name="project_id"/>
+            <column name="created_at"/>
+        </createIndex>
+        <sql>
+            ALTER TABLE model_comment ADD CONSTRAINT ck_model_comment__one_target
+            CHECK ((model_id IS NOT NULL AND project_id IS NULL) OR (model_id IS NULL AND project_id IS NOT NULL))
+        </sql>
+    </changeSet>
+
+    <!-- Notifications : reperes du projet (le texte est compose par l'interface). -->
+    <changeSet id="20261027100000-3" author="afrivox">
+        <addColumn tableName="notification">
+            <column name="project_id" type="bigint"/>
+            <column name="project_name" type="varchar(120)"/>
+        </addColumn>
+    </changeSet>
+
+    <!--
+        Profil public : tout est facultatif et desactive par defaut. Un profil non public n'est visible nulle part ;
+        « ouvert aux opportunites » n'a d'effet que si le profil est public.
+    -->
+    <changeSet id="20261027100000-4" author="afrivox">
+        <addColumn tableName="user_profile">
+            <column name="public_profile" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="open_to_work" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="profile_url" type="varchar(300)"/>
+        </addColumn>
+    </changeSet>
+
+    <!--
+        Demande de contact d'une organisation vers un developpeur ouvert aux opportunites. L'adresse du developpeur
+        n'est jamais communiquee : c'est lui qui lit la demande (avec le moyen de joindre l'organisation) et decide.
+    -->
+    <changeSet id="20261027100000-5" author="afrivox">
+        <createTable tableName="contact_request">
+            <column name="id" type="bigint">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="sender_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recipient_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="message" type="varchar(1000)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="contact" type="varchar(120)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="varchar(10)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="answered_at" type="${datetimeType}"/>
+        </createTable>
+        <addForeignKeyConstraint baseColumnNames="sender_id" baseTableName="contact_request"
+                                 constraintName="fk_contact_request__sender_id"
+                                 referencedColumnNames="id" referencedTableName="user_profile" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseColumnNames="recipient_id" baseTableName="contact_request"
+                                 constraintName="fk_contact_request__recipient_id"
+                                 referencedColumnNames="id" referencedTableName="user_profile" onDelete="CASCADE"/>
+        <createIndex tableName="contact_request" indexName="idx_contact_request__recipient">
+            <column name="recipient_id"/>
+            <column name="created_at"/>
+        </createIndex>
+        <createIndex tableName="contact_request" indexName="idx_contact_request__sender">
+            <column name="sender_id"/>
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>
